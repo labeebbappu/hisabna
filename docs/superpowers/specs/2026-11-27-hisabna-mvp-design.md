@@ -32,7 +32,7 @@ Receipt scan, recurring, multi-currency conversion, search, totals/charts, expor
 ## 3. Constraints
 
 - License: **Apache-2.0** (developer's decision). Contributions need a CLA or at least DCO sign-off, or the developer cannot relicense later. The name "Hisabna" is protected separately by trademark, not by the code license.
-- Dependencies: MIT/Apache/BSD only in the core. A license check runs in CI.
+- Dependencies: MIT/Apache/BSD/ISC etc. for production (shipped) dependencies; dev-only build/test tooling may additionally use MPL-2.0 (weak file-level copyleft, not shipped); checked in CI by `pnpm licence-check`.
 - Data location: hosting inside the GCC (region not chosen yet). Qatar Law 13 of 2016 review pending.
 - Stack is TypeScript end to end so core logic can be shared.
 
@@ -106,13 +106,23 @@ Built on the share-ledger design in HANDOFF.md §3, with these fixes decided now
 
 These tighten wording that was wrong or incomplete in the handbook:
 1. An entry is accepted only if Σpaid = Σowed = total.
-2. Rounding remainder goes to the **largest payer** (ties by member order) when several people paid; named in every test case.
-3. Percent/Shares rounding that overshoots takes the difference back from the largest share (ties by member order).
-4. Amount, `paid_by`, `split_method`, `split_input` and shares merge as **one unit** and are revalidated after every merge.
-5. Conflicting edits to money fields (builder's call, changed after review): the server rejects a stale write to any money field and the user reviews both versions; the rejection is logged. Non-money fields merge automatically, logged, other author notified (T39). Reason: last-write-wins lets a stale offline edit silently overwrite a newer one, the main threat to zero balance-mismatch bugs.
-6. Placeholder claims need **Owner approval** (decided, see §9), plus an Owner "release identity" action.
-7. Activity log is append-only; merging repeat edits within 60 s happens in a buffer before the write.
-8. Invariant 4 is checked in **every** currency, and entry restore re-checks it.
+2. **Remainder algorithm** (Equal, Percent, Shares). **PROVISIONAL**: these rules are the builder's choice and must be confirmed or replaced when product spec rev 18 is available. Terms: `total` is the amount in minor units; "payer" means a person with `paid > 0`; "in the split" means listed in the split input; ties are broken by member (list) order. Every test case names the rule it exercises.
+   - **Equal** (n people in the split):
+     1. Every person gets `floor(total / n)`; `leftover = total mod n`.
+     2. The whole `leftover` goes to the largest payer in the split (ties by member order).
+     3. If nobody in the split paid, one unit each goes to the first `leftover` members.
+   - **Percent and Shares** (weights `w`, sum `W`; for Percent, `W` = 10000 basis points; a Percent weight may be 0, a Shares weight is at least 1):
+     1. Each person gets `rounded = (2*total*w + W) / (2*W)` (integer division, half-up). A person with `w = 0` gets 0.
+     2. `diff = total - Σ rounded`.
+     3. If `diff = 0`, stop.
+     4. The **primary target** is the largest payer in the split among people with `w > 0` (ties by member order). If there is none, it is the person with `w > 0` and the largest `rounded` (first on ties). People with `w = 0` are never the target.
+     5. If `rounded(target) + diff >= 0`, add `diff` to the target and stop.
+     6. Otherwise (only possible when `diff < 0`) do not touch the target. Order the people with `w > 0` and `rounded > 0` by rounding excess `rounded*W - total*w` descending (ties by list index) and remove one unit from each, in that order, until `|diff|` units are removed. One pass is always enough, and nobody goes below 0.
+3. Amount, `paid_by`, `split_method`, `split_input` and shares merge as **one unit** and are revalidated after every merge.
+4. Conflicting edits to money fields (builder's call, changed after review): the server rejects a stale write to any money field and the user reviews both versions; the rejection is logged. Non-money fields merge automatically, logged, other author notified (T39). Reason: last-write-wins lets a stale offline edit silently overwrite a newer one, the main threat to zero balance-mismatch bugs.
+5. Placeholder claims need **Owner approval** (decided, see §9), plus an Owner "release identity" action.
+6. Activity log is append-only; merging repeat edits within 60 s happens in a buffer before the write.
+7. Invariant 4 is checked in **every** currency, and entry restore re-checks it.
 
 ## 8. Build order
 
@@ -142,3 +152,16 @@ These tighten wording that was wrong or incomplete in the handbook:
 - **Funding model** for SMS cost is undecided; it affects how strict OTP send limits must be.
 
 **Builder's call:** ORM/query layer, test framework, state management in the apps, CI provider, exact job-queue library.
+
+## 10. Questions for the next plans
+
+1. **Wire format for money.** Decimal strings of minor units, parsed with a strict `^-?[0-9]+$` check before `BigInt` (`BigInt('')` is `0n`, `BigInt('0x1A')` is `26n`). Add `minorToWire` / `minorFromWire` before any endpoint. node-postgres returns `bigint` columns as strings.
+2. **One dispatcher.** A single `computeEntry(method, splitInput, payments)` with a discriminated `SplitInput`, so clients and server cannot diverge.
+3. **Persistence.** Store `split_method`, `split_input`, the computed shares and a split-algorithm version per entry.
+4. **Product rule decisions needing spec rev 18.** Overshoot taken by the payer vs the largest share; whether Equal and Shares 1:1 must give identical odd-unit results; the definition of Adjustment; whether a 0% person counts as in the split.
+5. **`joinOrder` for Simplify.** Where it comes from (it must include members who left and placeholders), and how invariant 4 uses `computeNets` per currency.
+6. **TS-source packages at runtime.** How Metro, Next.js and the Fastify/worker runtime resolve the `.js` import specifiers of TS-source packages; confirm Hermes `BigInt` support early.
+7. **Error mapping.** From `MoneyError` / `LedgerError` codes to API errors and Arabic/English messages, and whether errors carry a `personId`.
+8. **Input caps.** Schema caps for weights and basis points, and a percent-input parser.
+9. **Invariant monitor.** Where it runs, and which DB constraints mirror invariants 1-3.
+10. **Participants.** Every person in `payments` or `owed` must be an active participant of the group; this is enforced in the API slice, not in `ledger`.

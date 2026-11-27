@@ -15,6 +15,9 @@ Branch: work now flows through task branches into `dev` (see docs/WORKFLOW.md); 
 | 8 | Simplify debts | done, reviewed | 08ab083 |
 | 9 | Property-based invariant tests | done, reviewed | cd0a10f, c22c230 |
 | 10 | Lint rules and licence check | done, reviewed | (this PR) |
-| F | Final whole-branch review | not started | |
+| F | Final whole-branch review | done, reviewed | branch fix/final-review-fixes |
 
-Open items: product spec rev 18 PDF; OTP provider; hosting region.
+Open items:
+- product spec rev 18 PDF; OTP provider; hosting region.
+- commit 4eb8b1e (chore: add build tracking... on dev) lacks Signed-off-by: recorded exception; add a DCO check in CI (WORKFLOW.md follow-up).
+- deferred from final review: Equal vs Shares 1:1 odd-unit rule (needs spec rev 18), percent-input parser, error context personId, CI `permissions: contents: read`.
