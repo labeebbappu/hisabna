@@ -7,8 +7,8 @@ Branch: feat/core-engine
 |---|---|---|---|
 | 1 | Monorepo scaffold, licence, CI | done, reviewed | 49b7d69, fd98cb6 |
 | 2 | money: currencies and limits | done, reviewed | 1bd81c1 |
-| 3 | money: parse and format | in progress | |
-| 4 | ledger: types and validation | not started | |
+| 3 | money: parse and format | done, reviewed | 006cae7 |
+| 4 | ledger: types and validation | in progress | |
 | 5 | Equal split | not started | |
 | 6 | Exact, Percent, Shares, Adjustment | not started | |
 | 7 | Balance engine | not started | |
