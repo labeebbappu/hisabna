@@ -140,3 +140,29 @@ describe('splitAdjustment', () => {
     expect(code(() => splitAdjustment(100n, ['A', 'B'], [a('A', 1n), a('A', 2n)], []))).toBe('DUPLICATE_PERSON');
   });
 });
+
+describe('rounding difference never makes the payer negative (property counterexamples)', () => {
+  it('shares: tiny-weight payer is skipped when diff would go below zero', () => {
+    const ids = ['p0', 'p1', 'p2', 'p3', 'p4'];
+    const weights = [12, 4, 1, 11, 16];
+    const out = splitShares(
+      7n,
+      ids.map((personId, i) => ({ personId, weight: weights[i]! })),
+      [p('p3', 1n), p('p2', 6n)],
+    );
+    expect(out.reduce((s, x) => s + x.owed, 0n)).toBe(7n);
+    expect(out.every((x) => x.owed >= 0n)).toBe(true);
+  });
+
+  it('percent: zero-percent payer is skipped when diff would go below zero', () => {
+    const ids = ['p0', 'p1', 'p2', 'p3', 'p4'];
+    const bps = [0, 12, 86, 4822, 5080];
+    const out = splitPercent(
+      9999135n,
+      ids.map((personId, i) => ({ personId, basisPoints: bps[i]! })),
+      [p('p0', 9999135n)],
+    );
+    expect(out.reduce((s, x) => s + x.owed, 0n)).toBe(9999135n);
+    expect(out.every((x) => x.owed >= 0n)).toBe(true);
+  });
+});
