@@ -1,0 +1,10 @@
+packages:
+  - apps/*
+  - packages/*
+
+catalog:
+  typescript: 7.0.2
+  vitest: 5.1.2
+  fast-check: 4.11.0
+  eslint: 10.15.0
+  typescript-eslint: 8.74.0

@@ -1,0 +1,15 @@
+{
+  "name": "hisabna",
+  "private": true,
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@12.23.0",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint"
+  },
+  "devDependencies": {
+    "turbo": "2.11.13"
+  }
+}
