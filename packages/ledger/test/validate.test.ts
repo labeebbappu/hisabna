@@ -51,6 +51,15 @@ describe('validateEntry', () => {
       }
     }
   });
+  it("SINGLE_PERSON: 'This expense only involves Ali, so it doesn't change any balance.' (T17)", () => {
+    expect(code(() => validateEntry(10000n, [s('Ali', 10000n, 10000n)], 'QAR'))).toBe('SINGLE_PERSON');
+  });
+  it('two people are enough even when one pays and owes 0', () => {
+    expect(() => validateEntry(10000n, [s('Ali', 10000n, 0n), s('Sara', 0n, 10000n)], 'QAR')).not.toThrow();
+  });
+  it('SINGLE_PERSON comes after NOT_BALANCED', () => {
+    expect(code(() => validateEntry(10000n, [s('Ali', 10000n, 9999n)], 'QAR'))).toBe('NOT_BALANCED');
+  });
   it('EMPTY_ENTRY', () => {
     expect(code(() => validateEntry(10000n, [], 'QAR'))).toBe('EMPTY_ENTRY');
   });

@@ -42,4 +42,7 @@ export function validateEntry(total: bigint, shares: EntryShare[], currency: Cur
     owed += s.owed;
   }
   if (paid !== total || owed !== total) throw new LedgerError('NOT_BALANCED');
+  // Handbook T17: an entry involving one person cannot change any balance. Rows are
+  // unique by person (checked above), so the row count is the person count.
+  if (shares.length < 2) throw new LedgerError('SINGLE_PERSON');
 }

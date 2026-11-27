@@ -5,6 +5,7 @@ export type LedgerErrorCode =
   | 'DUPLICATE_PERSON'
   | 'NEGATIVE_SHARE'
   | 'EMPTY_ENTRY'
+  | 'SINGLE_PERSON'
   | 'UNKNOWN_PERSON'
   | 'BAD_INPUT';
 

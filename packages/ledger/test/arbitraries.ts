@@ -148,7 +148,10 @@ function build(r: Raw): EntryCase | null {
     if (method === 'adjustment' && e instanceof LedgerError && e.code === 'NEGATIVE_SHARE') return null;
     throw e;
   }
-  return { currency, total, members, payments, method, weights, rerun: run, owed, shares: buildEntryShares(owed, payments) };
+  const shares = buildEntryShares(owed, payments);
+  // One person paying and owing everything is rejected by design (SINGLE_PERSON, handbook T17).
+  if (shares.length < 2) return null;
+  return { currency, total, members, payments, method, weights, rerun: run, owed, shares };
 }
 
 const makeArbEntry = (base: fc.Arbitrary<Base>): fc.Arbitrary<EntryCase> =>
