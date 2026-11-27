@@ -11,7 +11,7 @@
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
     "licence-check": "node scripts/check-licenses.mjs",
-    "test:scripts": "node --test scripts/licence-expression.test.mjs"
+    "test:scripts": "node --test scripts/*.test.mjs"
   },
   "devDependencies": {
     "turbo": "2.11.13"

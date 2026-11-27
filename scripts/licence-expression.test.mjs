@@ -38,3 +38,28 @@ test("malformed expressions fail closed", () => {
     assert.equal(isAllowed(e), false, e);
   }
 });
+
+import { assertScanObject, flattenScan, splitScans } from "./licence-scan.mjs";
+
+const scan = (o) => Object.fromEntries(Object.entries(o).map(([l, v]) => [l, v.map(([name, ...versions]) => ({ name, versions }))]));
+
+test("scan guard: non-object output is rejected", () => {
+  for (const bad of [null, [], "x", 5, undefined]) assert.throws(() => assertScanObject(bad));
+});
+test("scan guard: entry without versions array is rejected", () => {
+  assert.throws(() => flattenScan({ MIT: [{ name: "a" }] }));
+});
+test("scan guard: empty combined scan fails", () => {
+  assert.throws(() => splitScans({}, {}), /no packages at all/);
+});
+test("scan guard: empty prod with a non-empty dev scan is allowed", () => {
+  const { prod, dev } = splitScans({}, scan({ MIT: [["vitest", "1.0.0"]] }));
+  assert.equal(prod.length, 0);
+  assert.deepEqual(dev, [{ id: "vitest@1.0.0", licence: "MIT" }]);
+});
+test("scan guard: packages in prod are not counted as dev-only", () => {
+  const prodScan = scan({ MIT: [["a", "1.0.0"]] });
+  const { prod, dev } = splitScans(prodScan, scan({ MIT: [["a", "1.0.0"], ["b", "2.0.0"]] }));
+  assert.equal(prod.length, 1);
+  assert.deepEqual(dev.map((d) => d.id), ["b@2.0.0"]);
+});
