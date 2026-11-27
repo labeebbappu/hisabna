@@ -113,11 +113,54 @@ describe('splitShares', () => {
     );
     expect(owedOf(100n, out)).toEqual([33n, 33n, 34n]);
   });
-  it('weight 0 or non-integer is BAD_INPUT', () => {
-    expect(code(() => splitShares(100n, [{ personId: 'A', weight: 0 }, { personId: 'B', weight: 1 }], []))).toBe(
-      'BAD_INPUT',
+  it('T16: decimal weights as strings, 2.5 / 1 / 1 on 450.00 -> 250.00 / 100.00 / 100.00', () => {
+    // W = 450 hundredths; 45000 * 250 / 450 = 25000, 45000 * 100 / 450 = 10000, twice.
+    const out = splitShares(
+      45000n,
+      [
+        { personId: 'A', weight: '2.5' },
+        { personId: 'B', weight: '1' },
+        { personId: 'C', weight: '1' },
+      ],
+      [p('A', 45000n)],
     );
+    expect(owedOf(45000n, out)).toEqual([25000n, 10000n, 10000n]);
+  });
+  it('decimal weight 5.5', () => {
+    const out = splitShares(10000n, [{ personId: 'A', weight: '5.5' }, { personId: 'B', weight: '4.5' }], []);
+    expect(owedOf(10000n, out)).toEqual([5500n, 4500n]);
+  });
+  it('number weights must be integers: 2.5 is BAD_INPUT', () => {
+    expect(code(() => splitShares(45000n, [{ personId: 'A', weight: 2.5 }, { personId: 'B', weight: 1 }], []))).toBe('BAD_INPUT');
     expect(code(() => splitShares(100n, [{ personId: 'A', weight: 1.5 }], []))).toBe('BAD_INPUT');
+  });
+  it('weight 0 gets 0n and is never charged the rounding difference', () => {
+    // exact 50.5 each, half-up 51 + 51 = 102, diff -1; A (weight 0) is not eligible, so first weighted person B takes it.
+    const out = splitShares(
+      101n,
+      [{ personId: 'A', weight: '0' }, { personId: 'B', weight: 1 }, { personId: 'C', weight: '1' }],
+      [p('A', 101n)],
+    );
+    expect(owedOf(101n, out)).toEqual([0n, 50n, 51n]);
+    expect(owedOf(100n, splitShares(100n, [{ personId: 'A', weight: 0 }, { personId: 'B', weight: 1 }], []))).toEqual([0n, 100n]);
+  });
+  it('all-zero weights are BAD_INPUT', () => {
+    expect(code(() => splitShares(100n, [{ personId: 'A', weight: 0 }, { personId: 'B', weight: '0.00' }], []))).toBe('BAD_INPUT');
+  });
+  it('malformed, negative and non-finite weights are BAD_INPUT', () => {
+    for (const w of ['1.234', '\u0661', '-1', '', '.5', '1.', '1e3', ' 1', '+1', -1, Number.NaN, Number.POSITIVE_INFINITY] as (string | number)[]) {
+      expect(code(() => splitShares(100n, [{ personId: 'A', weight: w }, { personId: 'B', weight: 1 }], [])), String(w)).toBe('BAD_INPUT');
+    }
+  });
+  it('non-string, non-number weights are BAD_INPUT, not a TypeError', () => {
+    const bad = [['2.5'], 2n, { toString: () => '2.5' }, null, undefined, true] as unknown as (string | number)[];
+    for (const w of bad) {
+      expect(code(() => splitShares(100n, [{ personId: 'A', weight: w }, { personId: 'B', weight: 1 }], [])), String(w)).toBe('BAD_INPUT');
+    }
+  });
+  it('duplicates and empty', () => {
+    expect(code(() => splitShares(100n, [{ personId: 'A', weight: 1 }, { personId: 'A', weight: '2' }], []))).toBe('DUPLICATE_PERSON');
+    expect(code(() => splitShares(100n, [], []))).toBe('BAD_INPUT');
   });
 });
 
@@ -125,6 +168,84 @@ describe('splitAdjustment', () => {
   it('adds adjustment on top of equal remainder', () => {
     const out = splitAdjustment(10000n, ['A', 'B', 'C'], [a('A', 1000n)], [p('A', 10000n)]);
     expect(owedOf(10000n, out)).toEqual([4000n, 3000n, 3000n]);
+  });
+  it('adjustments above the total are fine when every result is >= 0', () => {
+    // remainder -2000 -> equal share -1000 each -> 6000 - 1000 = 5000 each
+    const out = splitAdjustment(10000n, ['A', 'B'], [a('A', 6000n), a('B', 6000n)], [p('A', 10000n)]);
+    expect(owedOf(10000n, out)).toEqual([5000n, 5000n]);
+  });
+  it('remainder -1n: the largest payer takes the larger reduction', () => {
+    // |remainder| 1 over 3 members: base 0, leftover 1 goes to payer B, so B owes 2500 - 1.
+    const adj = [a('A', 5000n), a('B', 2500n), a('C', 2501n)];
+    expect(owedOf(10000n, splitAdjustment(10000n, ['A', 'B', 'C'], adj, [p('B', 10000n)]))).toEqual([5000n, 2499n, 2501n]);
+    // no payer among members: first member takes the unit
+    expect(owedOf(10000n, splitAdjustment(10000n, ['A', 'B', 'C'], adj, []))).toEqual([4999n, 2500n, 2501n]);
+  });
+  it('payer who cannot absorb the reduction: fall back to the no-payer rule', () => {
+    // remainder 10000 - 10002 = -2; base 0, leftover 2. Payer A would take 2 and go 1 - 2 = -1,
+    // so the 2 units go one each to the first members A, B: A 0, B 5999, C 4001 (sum 10000).
+    const adj = [a('A', 1n), a('B', 6000n), a('C', 4001n)];
+    expect(owedOf(10000n, splitAdjustment(10000n, ['A', 'B', 'C'], adj, [p('A', 10000n)]))).toEqual([0n, 5999n, 4001n]);
+    // payer B can absorb 2 (6000 - 2 = 5998): unchanged payer rule
+    expect(owedOf(10000n, splitAdjustment(10000n, ['A', 'B', 'C'], adj, [p('B', 10000n)]))).toEqual([1n, 5998n, 4001n]);
+    // no payer: first two members
+    expect(owedOf(10000n, splitAdjustment(10000n, ['A', 'B', 'C'], adj, []))).toEqual([0n, 5999n, 4001n]);
+  });
+  it('total 1n, three members each +1n, any payer: remainder -2 -> [0, 0, 1]', () => {
+    const adj = [a('A', 1n), a('B', 1n), a('C', 1n)];
+    for (const who of ['A', 'B', 'C', undefined]) {
+      const pay = who === undefined ? [] : [p(who, 1n)];
+      expect(owedOf(1n, splitAdjustment(1n, ['A', 'B', 'C'], adj, pay)), String(who)).toEqual([0n, 0n, 1n]);
+    }
+  });
+  it('exhaustive small cases: never rejects unless the no-payer rule gives a negative result', () => {
+    const MEMBERS = ['A', 'B', 'C'];
+    for (let n = 2; n <= 3; n++) {
+      const members = MEMBERS.slice(0, n);
+      const payers: (string | undefined)[] = [undefined, 'OUT', ...members];
+      for (let total = 0; total <= 8; total++) {
+        // adjustments -2..6 for every member
+        for (let k = 0; k < 9 ** n; k++) {
+          let r = k;
+          const adjs = members.map((personId) => {
+            const v = BigInt((r % 9) - 2);
+            r = Math.floor(r / 9);
+            return a(personId, v);
+          });
+          const T = BigInt(total);
+          const rem = T - adjs.reduce((s, x) => s + x.owed, 0n);
+          const abs = rem < 0n ? -rem : rem;
+          const nn = BigInt(n);
+          const oracle = adjs.map((x, i) => {
+            const share = abs / nn + (BigInt(i) < abs % nn ? 1n : 0n);
+            return (rem < 0n ? -share : share) + x.owed;
+          });
+          const shouldFail = oracle.some((v) => v < 0n);
+          for (const who of payers) {
+            const pay = who === undefined ? [] : [p(who, T)];
+            let out: Allocation[] | undefined;
+            let c: string | undefined;
+            try {
+              out = splitAdjustment(T, members, adjs, pay);
+            } catch (e) {
+              c = e instanceof LedgerError ? e.code : 'OTHER';
+            }
+            const label = `n=${n} total=${total} adj=${adjs.map((x) => x.owed)} payer=${String(who)}`;
+            if (out === undefined) {
+              expect(c, label).toBe('NEGATIVE_SHARE');
+              if (who === undefined) expect(shouldFail, label).toBe(true);
+            } else {
+              expect(out.reduce((s, x) => s + x.owed, 0n), label).toBe(T);
+              expect(out.every((x) => x.owed >= 0n), label).toBe(true);
+            }
+            if (!shouldFail) expect(out, label).toBeDefined();
+          }
+        }
+      }
+    }
+  });
+  it('a negative result after a negative remainder is NEGATIVE_SHARE', () => {
+    expect(code(() => splitAdjustment(100n, ['A', 'B'], [a('A', 200n), a('B', 0n)], []))).toBe('NEGATIVE_SHARE');
   });
   it('negative adjustment that stays valid', () => {
     const out = splitAdjustment(10000n, ['A', 'B'], [a('A', -9000n)], []);
@@ -175,7 +296,40 @@ describe('negative rounding diff the target cannot absorb is spread round-robin'
     expect(owedOf(out)).toEqual(Array(8).fill(1n));
   });
 
+  it('shares 9n [1,1,1,1,1,1,9]: removal follows rounding excess, not rounded owed', () => {
+    // exact 0.6 x6 (round up, excess +6), 5.4 (rounds to 5, excess -6); sum 11, diff -2;
+    // payer p0 (owed 1) cannot absorb -2, so the two highest-excess people p0, p1 lose a unit.
+    const out = splitShares(9n, sh([1, 1, 1, 1, 1, 1, 9]), [p('p0', 9n)]);
+    expect(owedOf(out)).toEqual([0n, 0n, 1n, 1n, 1n, 1n, 5n]);
+  });
+
+  it('toWeight rejects unsafe integers', () => {
+    const big = 2 ** 53;
+    expect(code(() => splitShares(100n, [{ personId: 'A', weight: big }, { personId: 'B', weight: 1 }], []))).toBe('BAD_INPUT');
+    expect(code(() => splitShares(100n, [{ personId: 'A', weight: big + 1 }, { personId: 'B', weight: 1 }], []))).toBe('BAD_INPUT');
+    expect(
+      code(() => splitPercent(100n, [{ personId: 'A', basisPoints: big }, { personId: 'B', basisPoints: 1 }], [])),
+    ).toBe('BAD_INPUT');
+    expect(code(() => splitShares(100n, [{ personId: 'A', weight: 2 ** 53 - 1 }, { personId: 'B', weight: 1 }], []))).toBeUndefined();
+  });
+
   it('shares 2n [1,1,1,1] removes from the first two', () => {
     expect(owedOf(splitShares(2n, sh([1, 1, 1, 1]), []))).toEqual([0n, 0n, 1n, 1n]);
+  });
+});
+
+describe('a 0% person is never the target of the rounding difference', () => {
+  const pct = (bps: number[]) => bps.map((basisPoints, i) => ({ personId: 'ABCD'[i]!, basisPoints }));
+  const owedOf = (xs: Allocation[]) => xs.map((x) => x.owed);
+
+  it('0% payer is ineligible: largest owed (first on ties) takes the diff', () => {
+    // exact B 33.33, C 33.33, D 33.34 -> 33,33,33; sum 99, diff +1; A (0%) excluded; first largest is B
+    const out = splitPercent(100n, pct([0, 3333, 3333, 3334]), [p('A', 100n)]);
+    expect(owedOf(out)).toEqual([0n, 34n, 33n, 33n]);
+  });
+
+  it('a positive-weight payer still takes the diff when a 0% person pays more', () => {
+    const out = splitPercent(100n, pct([0, 3333, 3333, 3334]), [p('A', 60n), p('C', 40n)]);
+    expect(owedOf(out)).toEqual([0n, 33n, 34n, 33n]);
   });
 });

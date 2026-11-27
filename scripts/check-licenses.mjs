@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { isAllowedIn } from "./licence-expression.mjs";
+import { splitScans } from "./licence-scan.mjs";
 
 // `pnpm licenses list --json` prints { "<licence>": [{ name, versions[], ... }] }.
 // -r is required: without it only the root package is scanned.
@@ -8,34 +9,20 @@ function list(extra) {
     encoding: "utf8",
     maxBuffer: 256 * 1024 * 1024,
   });
-  const parsed = JSON.parse(out);
-  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-    console.error("Unexpected `pnpm licenses` output: not a JSON object");
-    process.exit(1);
-  }
-  return parsed;
+  return JSON.parse(out);
 }
 
-function versionsOf(p) {
-  if (!Array.isArray(p.versions)) {
-    console.error(`Unexpected \`pnpm licenses\` output: entry ${p.name} has no versions array`);
-    process.exit(1);
-  }
-  return p.versions;
-}
-
-const flatten = (byLicence) =>
-  Object.entries(byLicence).flatMap(([licence, pkgs]) =>
-    pkgs.flatMap((p) => versionsOf(p).map((v) => ({ id: `${p.name}@${v}`, licence }))),
-  );
-
-const prod = flatten(list(["--prod"]));
-if (prod.length === 0) {
-  console.error("Licence scan found no production packages; refusing to pass.");
+let prod;
+let dev;
+try {
+  ({ prod, dev } = splitScans(list(["--prod"]), list([])));
+} catch (e) {
+  console.error(e instanceof Error ? e.message : String(e));
   process.exit(1);
 }
-const prodIds = new Set(prod.map((p) => p.id));
-const dev = flatten(list([])).filter((p) => !prodIds.has(p.id));
+if (prod.length === 0) {
+  console.log("note: no production packages found (money and ledger have no third-party runtime dependencies).");
+}
 
 const bad = [];
 for (const [scope, pkgs] of [["prod", prod], ["dev", dev]]) {

@@ -10,7 +10,7 @@ import {
   validateEntry,
 } from '../src/index.js';
 import type { LedgerEntry, PersonId } from '../src/index.js';
-import { CURRENCIES, JOIN_ORDER, arbEntry, arbWeighted } from './arbitraries.js';
+import { CURRENCIES, JOIN_ORDER, arbBase, arbEntry, arbEntryLarge, arbWeighted } from './arbitraries.js';
 import type { EntryCase } from './arbitraries.js';
 
 const cfg = { numRuns: 1000 };
@@ -30,6 +30,21 @@ describe('Invariant 1: every built entry validates', () => {
         expect(sum(e.shares.map((s) => s.paid))).toBe(e.total);
       }),
       cfg,
+    );
+  });
+});
+
+describe('Groups up to 100 members', () => {
+  it('every built entry validates and nets are zero-sum', () => {
+    fc.assert(
+      fc.property(arbEntryLarge, (e) => {
+        expect(() => validateEntry(e.total, e.shares, e.currency)).not.toThrow();
+        expect(sum(e.owed.map((a) => a.owed))).toBe(e.total);
+        const nets = computeNets(toLedger([e]));
+        for (const n of nets.values()) assertZeroSum(n);
+        expect(e.rerun()).toEqual(e.owed);
+      }),
+      { numRuns: 100 },
     );
   });
 });
@@ -178,6 +193,134 @@ describe('Percent and Shares', () => {
           b.total,
           b.weights,
         );
+      }),
+      cfg,
+    );
+  });
+});
+
+describe('Rounding fallback: at most one person leaves [floor(exact), ceil(exact)]', () => {
+  const outside = (total: bigint, W: bigint, weights: number[], owed: bigint[]) =>
+    owed.filter((o, i) => {
+      const num = total * BigInt(weights[i]!);
+      return o < num / W || o > (num + W - 1n) / W;
+    }).length;
+
+  it('holds for arbitrary shares and percent', () => {
+    fc.assert(
+      fc.property(arbWeighted, (b) => {
+        const sh = splitShares(b.total, b.members.map((personId, i) => ({ personId, weight: b.weights[i]! })), b.payments);
+        const W = b.weights.reduce((x, y) => x + BigInt(y), 0n);
+        expect(outside(b.total, W, b.weights, sh.map((a) => a.owed))).toBeLessThanOrEqual(1);
+        const pc = splitPercent(b.total, b.members.map((personId, i) => ({ personId, basisPoints: b.bps[i]! })), b.payments);
+        expect(outside(b.total, 10000n, b.bps, pc.map((a) => a.owed))).toBeLessThanOrEqual(1);
+      }),
+      cfg,
+    );
+  });
+
+  it('holds for many small weights next to one outlier with a tiny total', () => {
+    const arb = fc.record({
+      small: fc.array(fc.integer({ min: 1, max: 3 }), { minLength: 2, maxLength: 8 }),
+      big: fc.integer({ min: 4, max: 60 }),
+      total: fc.bigInt({ min: 1n, max: 40n }),
+      payer: fc.nat({ max: 8 }),
+      paid: fc.boolean(),
+    });
+    fc.assert(
+      fc.property(arb, ({ small, big, total, payer, paid }) => {
+        const weights = [...small, big];
+        const members = weights.map((_, i) => `p${i}`);
+        const payments = paid ? [{ personId: members[payer % members.length]!, paid: total }] : [];
+        const out = splitShares(total, members.map((personId, i) => ({ personId, weight: weights[i]! })), payments);
+        const W = weights.reduce((x, y) => x + BigInt(y), 0n);
+        expect(sum(out.map((a) => a.owed))).toBe(total);
+        expect(outside(total, W, weights, out.map((a) => a.owed))).toBeLessThanOrEqual(1);
+      }),
+      cfg,
+    );
+  });
+});
+
+describe('Percent: zero-weight people', () => {
+  it('a person at 0 basis points always owes 0n', () => {
+    const arb = arbWeighted.chain((b) =>
+      fc.array(fc.boolean(), { minLength: b.members.length, maxLength: b.members.length }).map((zero) => {
+        const bps = [...b.bps];
+        const keep = bps.findIndex((_, i) => !zero[i]);
+        const k = keep < 0 ? 0 : keep;
+        let moved = 0;
+        bps.forEach((v, i) => {
+          if (i !== k && (zero[i] ?? false)) {
+            moved += v;
+            bps[i] = 0;
+          }
+        });
+        bps[k] = bps[k]! + moved;
+        return { ...b, bps };
+      }),
+    );
+    fc.assert(
+      fc.property(arb, (b) => {
+        const out = splitPercent(b.total, b.members.map((personId, i) => ({ personId, basisPoints: b.bps[i]! })), b.payments);
+        expect(sum(out.map((a) => a.owed))).toBe(b.total);
+        out.forEach((a, i) => {
+          if (b.bps[i] === 0) expect(a.owed).toBe(0n);
+        });
+      }),
+      cfg,
+    );
+  });
+});
+
+describe('Shares: zero-weight people', () => {
+  it('a person with weight 0 always owes 0n', () => {
+    const arb = arbWeighted.chain((b) =>
+      fc.array(fc.boolean(), { minLength: b.members.length, maxLength: b.members.length }).map((zero) => {
+        const weights = b.weights.map((w, i) => (zero[i] === true && i > 0 ? 0 : w));
+        return { ...b, weights };
+      }),
+    );
+    fc.assert(
+      fc.property(arb, (b) => {
+        const out = splitShares(b.total, b.members.map((personId, i) => ({ personId, weight: b.weights[i]! })), b.payments);
+        expect(sum(out.map((a) => a.owed))).toBe(b.total);
+        out.forEach((a, i) => {
+          if (b.weights[i] === 0) expect(a.owed).toBe(0n);
+        });
+      }),
+      cfg,
+    );
+  });
+});
+
+describe('Shares: decimal string weights', () => {
+  const POOL = ['0', '0.01', '0.5', '1', '1.25', '2.5', '3'];
+  const hundredths = (w: string) => {
+    const [i = '0', f = ''] = w.split('.');
+    return BigInt(i) * 100n + BigInt(f.padEnd(2, '0'));
+  };
+  const arb = arbBase.chain((b) =>
+    fc
+      .array(fc.constantFrom(...POOL), { minLength: b.members.length, maxLength: b.members.length })
+      .filter((ws) => ws.some((w) => w !== '0'))
+      .map((ws) => ({ ...b, ws })),
+  );
+  it('sums to total, no negatives, zero weights owe 0n, at most one person outside [floor, ceil]', () => {
+    fc.assert(
+      fc.property(arb, (b) => {
+        const out = splitShares(b.total, b.members.map((personId, i) => ({ personId, weight: b.ws[i]! })), b.payments);
+        const W = b.ws.reduce((x, w) => x + hundredths(w), 0n);
+        expect(sum(out.map((a) => a.owed))).toBe(b.total);
+        let outside = 0;
+        out.forEach((a, i) => {
+          const w = hundredths(b.ws[i]!);
+          expect(a.owed >= 0n).toBe(true);
+          if (w === 0n) expect(a.owed).toBe(0n);
+          const num = b.total * w;
+          if (a.owed < num / W || a.owed > (num + W - 1n) / W) outside++;
+        });
+        expect(outside).toBeLessThanOrEqual(1);
       }),
       cfg,
     );

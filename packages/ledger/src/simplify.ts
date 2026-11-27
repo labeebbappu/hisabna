@@ -4,6 +4,7 @@ import type { PersonId } from './types.js';
 
 export type Transfer = { from: PersonId; to: PersonId; amount: bigint };
 
+/** Pass `joinOrder` in group join order (`Member.joined_at`), including members who left: ties depend on it. */
 export function simplifyDebts(nets: Map<PersonId, bigint>, joinOrder: PersonId[]): Transfer[] {
   const index = new Map<PersonId, number>();
   joinOrder.forEach((p, i) => {

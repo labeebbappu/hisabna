@@ -2,6 +2,7 @@ import { LedgerError } from '../errors.js';
 import type { Allocation, Payment, PersonId } from '../types.js';
 import { splitProportional, toWeight } from './proportional.js';
 
+/** Pass `percents` in group join order (`Member.joined_at`): ties depend on it. */
 export function splitPercent(
   total: bigint,
   percents: { personId: PersonId; basisPoints: number }[],

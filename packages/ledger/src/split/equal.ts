@@ -2,6 +2,7 @@ import { LedgerError } from '../errors.js';
 import type { Allocation, Payment, PersonId } from '../types.js';
 import { largestPayerIn } from './remainder.js';
 
+/** Pass `members` in group join order (`Member.joined_at`): the no-payer leftover goes to the first members. */
 export function splitEqual(total: bigint, members: PersonId[], payments: Payment[]): Allocation[] {
   if (members.length === 0 || total < 0n) throw new LedgerError('BAD_INPUT');
   if (new Set(members).size !== members.length) throw new LedgerError('DUPLICATE_PERSON');

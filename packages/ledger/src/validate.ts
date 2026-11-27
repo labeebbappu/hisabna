@@ -19,7 +19,8 @@ export function buildEntryShares(owed: Allocation[], payments: Payment[]): Entry
     if (existing) existing.paid = p.paid;
     else byPerson.set(p.personId, { personId: p.personId, paid: p.paid, owed: 0n });
   }
-  return [...byPerson.values()];
+  // All-zero rows carry no information (and would make a non-member look like a participant).
+  return [...byPerson.values()].filter((x) => x.paid !== 0n || x.owed !== 0n);
 }
 
 export function validateEntry(total: bigint, shares: EntryShare[], currency: CurrencyCode): void {
@@ -34,6 +35,9 @@ export function validateEntry(total: bigint, shares: EntryShare[], currency: Cur
   }
   if (total <= 0n) throw new LedgerError('AMOUNT_NOT_POSITIVE');
   if (!isAmountInRange(total, currency)) throw new LedgerError('AMOUNT_OUT_OF_RANGE');
+  // Handbook T17 (flow at lines 2608-2617: checked before the balance check): an entry
+  // involving one person cannot change any balance. All-zero rows are ignored.
+  if (shares.filter((x) => x.paid !== 0n || x.owed !== 0n).length < 2) throw new LedgerError('SINGLE_PERSON');
   let paid = 0n;
   let owed = 0n;
   for (const s of shares) {

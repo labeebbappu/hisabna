@@ -208,17 +208,16 @@ importers:
         version: 2.11.13
 
   packages/config-eslint:
-    dependencies:
+    devDependencies:
       eslint:
         specifier: 'catalog:'
         version: 10.15.0
-      typescript-eslint:
-        specifier: 'catalog:'
-        version: 8.74.0(eslint@10.15.0)(typescript@6.0.3)
-    devDependencies:
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
+      typescript-eslint:
+        specifier: 'catalog:'
+        version: 8.74.0(eslint@10.15.0)(typescript@6.0.3)
 
   packages/config-ts: {}
 

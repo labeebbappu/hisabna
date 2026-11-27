@@ -9,6 +9,7 @@ import {
   splitExact,
   splitPercent,
   splitShares,
+  validateEntry,
 } from '../src/index.js';
 import type { Allocation, EntryShare, Payment, PersonId } from '../src/index.js';
 
@@ -63,11 +64,12 @@ function arbTotal(currency: CurrencyCode): fc.Arbitrary<bigint> {
 }
 
 /** Currency, total, members p0..p(n-1) and 1-3 payers (maybe one outsider) paying exactly the total. */
-export const arbBase: fc.Arbitrary<Base> = fc.constantFrom(...CURRENCIES).chain((currency) =>
+export const makeArbBase = (maxMembers: number): fc.Arbitrary<Base> =>
+  fc.constantFrom(...CURRENCIES).chain((currency) =>
   fc
     .record({
       total: arbTotal(currency),
-      n: fc.integer({ min: 2, max: 8 }),
+      n: fc.integer({ min: 2, max: maxMembers }),
       withOutsider: fc.boolean(),
       cuts: arbCuts(2),
       order: fc.integer({ min: 1, max: 3 }),
@@ -82,6 +84,8 @@ export const arbBase: fc.Arbitrary<Base> = fc.constantFrom(...CURRENCIES).chain(
       });
     }),
 );
+
+export const arbBase: fc.Arbitrary<Base> = makeArbBase(8);
 
 export const arbBps = (n: number): fc.Arbitrary<number[]> =>
   arbCuts(n - 1).map((c) => cut(10000n, n, c).map(Number));
@@ -128,7 +132,8 @@ function build(r: Raw): EntryCase | null {
       break;
     }
     case 'adjustment': {
-      const bound = total / BigInt(4 * n);
+      // up to 1.5x the total across people, so some cases exercise a negative remainder
+      const bound = (3n * total) / BigInt(2 * n);
       const adjustments = members
         .map((personId, i) => ({ personId, owed: (bound * r.adjScale[i]!) / 1000n, on: r.adjMask[i]! }))
         .filter((a) => a.on)
@@ -141,23 +146,46 @@ function build(r: Raw): EntryCase | null {
   try {
     owed = run();
   } catch (e) {
-    if (e instanceof LedgerError && e.code === 'NEGATIVE_SHARE') return null;
+    // Only an adjustment can legitimately be rejected for a negative share; anywhere else it is a bug.
+    if (method === 'adjustment' && e instanceof LedgerError && e.code === 'NEGATIVE_SHARE') return null;
     throw e;
   }
-  return { currency, total, members, payments, method, weights, rerun: run, owed, shares: buildEntryShares(owed, payments) };
+  const shares = buildEntryShares(owed, payments);
+  // One person paying and owing everything is rejected by design (SINGLE_PERSON, handbook T17):
+  // check that, then drop the case from the generated set.
+  if (shares.length < 2) {
+    let thrown: unknown;
+    try {
+      validateEntry(total, shares, currency);
+    } catch (e) {
+      thrown = e;
+    }
+    if (!(thrown instanceof LedgerError) || thrown.code !== 'SINGLE_PERSON') {
+      throw new Error('a single-person entry must be rejected with SINGLE_PERSON');
+    }
+    return null;
+  }
+  return { currency, total, members, payments, method, weights, rerun: run, owed, shares };
 }
 
-export const arbEntry: fc.Arbitrary<EntryCase> = arbBase
-  .chain((b) => {
-    const n = b.members.length;
-    return fc.record({
-      method: fc.constantFrom<Method>('equal', 'exact', 'percent', 'shares', 'adjustment'),
-      bps: arbBps(n),
-      weights: arbWeights(n),
-      exactCuts: arbCuts(n - 1),
-      adjMask: fc.array(fc.boolean(), { minLength: n, maxLength: n }),
-      adjScale: fc.array(fc.bigInt({ min: -1000n, max: 1000n }), { minLength: n, maxLength: n }),
-    }).map((x) => ({ ...b, ...x }));
-  })
-  .map(build)
-  .filter((e): e is EntryCase => e !== null);
+const makeArbEntry = (base: fc.Arbitrary<Base>): fc.Arbitrary<EntryCase> =>
+  base
+    .chain((b) => {
+      const n = b.members.length;
+      return fc.record({
+        method: fc.constantFrom<Method>('equal', 'exact', 'percent', 'shares', 'adjustment'),
+        bps: arbBps(n),
+        weights: arbWeights(n),
+        exactCuts: arbCuts(n - 1),
+        adjMask: fc.array(fc.boolean(), { minLength: n, maxLength: n }),
+        adjScale: fc.array(fc.bigInt({ min: -1000n, max: 1000n }), { minLength: n, maxLength: n }),
+      }).map((x) => ({ ...b, ...x }));
+    })
+    .map(build)
+    .filter((e): e is EntryCase => e !== null);
+
+/** 2-8 members: used by the 1000-run properties. */
+export const arbEntry: fc.Arbitrary<EntryCase> = makeArbEntry(arbBase);
+
+/** 2-100 members: exercises the group-size cap; use with a lower numRuns. */
+export const arbEntryLarge: fc.Arbitrary<EntryCase> = makeArbEntry(makeArbBase(100));
