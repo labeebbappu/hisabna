@@ -105,19 +105,22 @@ Built on the share-ledger design in HANDOFF.md §3, with these fixes decided now
 ## 7. Rules locked in by this design
 
 These tighten wording that was wrong or incomplete in the handbook:
-1. An entry is accepted only if Σpaid = Σowed = total.
+1. An entry is accepted only if Σpaid = Σowed = total, and it involves at least 2 different people (`SINGLE_PERSON` otherwise; handbook T17, lines 2608-2611, 5282). The check runs after the balance check. All-zero rows are dropped by `buildEntryShares`, so only people with a non-zero paid or owed amount count.
 2. **Remainder algorithm** (Equal, Percent, Shares). **PROVISIONAL**: these rules are the builder's choice and must be confirmed or replaced when product spec rev 18 is available. Terms: `total` is the amount in minor units; "payer" means a person with `paid > 0`; "in the split" means listed in the split input; ties are broken by member (list) order. Every test case names the rule it exercises.
    - **Equal** (n people in the split):
      1. Every person gets `floor(total / n)`; `leftover = total mod n`.
      2. The whole `leftover` goes to the largest payer in the split (ties by member order).
      3. If nobody in the split paid, one unit each goes to the first `leftover` members.
-   - **Percent and Shares** (weights `w`, sum `W`; for Percent, `W` = 10000 basis points; a Percent weight may be 0, a Shares weight is at least 1):
+   - **Percent and Shares** (weights `w`, sum `W`; for Percent, `W` = 10000 basis points; a Percent or Shares weight may be 0, but `W` must be > 0. **PROVISIONAL** for Shares: a weight is a whole number, or a decimal string with at most 2 decimals, `^[0-9]+(\.[0-9]{1,2})?$`, converted exactly to hundredths; number weights must be integers, so `2.5` is `'2.5'`. The handbook (lines 5176, 2717) allows decimal shares but gives no cap; 2 decimals matches the percent input rule at line 5173):
      1. Each person gets `rounded = (2*total*w + W) / (2*W)` (integer division, half-up). A person with `w = 0` gets 0.
      2. `diff = total - Σ rounded`.
      3. If `diff = 0`, stop.
      4. The **primary target** is the largest payer in the split among people with `w > 0` (ties by member order). If there is none, it is the person with `w > 0` and the largest `rounded` (first on ties). People with `w = 0` are never the target.
      5. If `rounded(target) + diff >= 0`, add `diff` to the target and stop.
-     6. Otherwise (only possible when `diff < 0`) do not touch the target. Order the people with `w > 0` and `rounded > 0` by rounding excess `rounded*W - total*w` descending (ties by list index) and remove one unit from each, in that order, until `|diff|` units are removed. One pass is always enough, and nobody goes below 0.
+     6. Otherwise (only possible when `diff < 0`) the target is not given the diff, but stays eligible for removal like everyone else. Order the people with `w > 0` and `rounded > 0` by rounding excess `rounded*W - total*w` descending (ties by list index) and remove one unit from each, in that order, until `|diff|` units are removed. One pass is always enough, and nobody goes below 0.
+   - **Adjustment** (**PROVISIONAL**: the handbook gives no worked example; line 5179 only requires each result >= 0): each adjustment is a signed extra amount one person owes. `remainder = total - Σadjustments` is signed. If `remainder >= 0` it is split with the Equal rules and the adjustments are added. If `remainder < 0`, `|remainder|` is split with the Equal rules and subtracted (the payer, who gets the leftover, gets the larger reduction), then the adjustments are added. Any final amount < 0 is `NEGATIVE_SHARE` (T15). Example: total 10000, A +6000, B +6000 gives 5000 / 5000.
+   - **Input order**: callers must pass members in group join order (`Member.joined_at`, handbook line 1031) to Equal, Percent, Shares, Adjustment and Simplify; ties and "first in member order" depend on it.
+   - **Amount parsing errors** (`@hisabna/money`): `INVALID_AMOUNT`, `TOO_MANY_DECIMALS`, then `AMOUNT_NOT_POSITIVE` (zero) and `AMOUNT_TOO_LARGE` (above the maximum), checked in that order. These replace the old single `OUT_OF_RANGE`.
 3. Amount, `paid_by`, `split_method`, `split_input` and shares merge as **one unit** and are revalidated after every merge.
 4. Conflicting edits to money fields (builder's call, changed after review): the server rejects a stale write to any money field and the user reviews both versions; the rejection is logged. Non-money fields merge automatically, logged, other author notified (T39). Reason: last-write-wins lets a stale offline edit silently overwrite a newer one, the main threat to zero balance-mismatch bugs.
 5. Placeholder claims need **Owner approval** (decided, see §9), plus an Owner "release identity" action.
@@ -158,10 +161,45 @@ These tighten wording that was wrong or incomplete in the handbook:
 1. **Wire format for money.** Decimal strings of minor units, parsed with a strict `^-?[0-9]+$` check before `BigInt` (`BigInt('')` is `0n`, `BigInt('0x1A')` is `26n`). Add `minorToWire` / `minorFromWire` before any endpoint. node-postgres returns `bigint` columns as strings.
 2. **One dispatcher.** A single `computeEntry(method, splitInput, payments)` with a discriminated `SplitInput`, so clients and server cannot diverge.
 3. **Persistence.** Store `split_method`, `split_input`, the computed shares and a split-algorithm version per entry.
-4. **Product rule decisions needing spec rev 18.** Overshoot taken by the payer vs the largest share; whether Equal and Shares 1:1 must give identical odd-unit results; the definition of Adjustment; whether a 0% person counts as in the split.
+4. **Product rule decisions needing spec rev 18.** Overshoot taken by the payer vs the largest share; whether Equal and Shares 1:1 must give identical odd-unit results; the definition of Adjustment (a working rule is in §7); whether a 0% person counts as in the split.
 5. **`joinOrder` for Simplify.** Where it comes from (it must include members who left and placeholders), and how invariant 4 uses `computeNets` per currency.
 6. **TS-source packages at runtime.** How Metro, Next.js and the Fastify/worker runtime resolve the `.js` import specifiers of TS-source packages; confirm Hermes `BigInt` support early.
 7. **Error mapping.** From `MoneyError` / `LedgerError` codes to API errors and Arabic/English messages, and whether errors carry a `personId`.
 8. **Input caps.** Schema caps for weights and basis points, and a percent-input parser.
 9. **Invariant monitor.** Where it runs, and which DB constraints mirror invariants 1-3.
 10. **Participants.** Every person in `payments` or `owed` must be an active participant of the group; this is enforced in the API slice, not in `ledger`.
+
+## 11. Handbook comparison (v1.0, 2026-11-27)
+
+The handbook was compared with the code. Product spec rev 18 is still unavailable; the handbook says the spec wins where they differ.
+
+**Matches (reproduced by tests in `packages/ledger/test/handbook.test.ts`):** chapter 2 worked example (all five expenses; nets Ali -73.33, Sara -43.34, Omar +116.67; simplified to 2 payments), T09, T10, T11, T12, T13, T14, T15, T16, T17, T28 (2 suggested payments). The leftover cent goes to the person who paid (confirmed by the developer).
+
+**Fixed in this wave:** T17 single-person entries rejected (`SINGLE_PERSON`); T16 decimal and zero Shares weights; Adjustment accepts Σadjustments above the total when every result is >= 0; `parseAmount` splits `OUT_OF_RANGE` into `AMOUNT_NOT_POSITIVE` / `AMOUNT_TOO_LARGE`; the §7 step 6 wording.
+
+**Not yet implemented / deferred:**
+- Full ISO 4217 currency table with verified decimals (line 5195). Wrong decimals would be a Critical bug, so this needs two independent sources.
+- Structured error data for T12-T15 messages (lines 2618-2620, 5267-5276): needs the difference amount and `personId`; codes `PAID_MISMATCH` / `SPLIT_MISMATCH` / `PERCENT_NOT_100`.
+- Pairwise debts when Simplify is off (line 3130, T29).
+- Income/Refund (PF-15) and Transfer (PF-16) entry types.
+- Rescale Exact amounts on edit (T18, lines 2940-2943).
+- Base-currency conversion (v1).
+- Description, notes and member limits (lines 5134, 5138, 5198).
+- Percent input parser with 2 decimals (line 5173).
+- Calculator expressions (line 5193).
+- Digit display setting (line 3687).
+- Invariant 2 is per group and currency, so callers must pass one group's entries (line 999).
+
+**Needs the developer's decision:**
+- §7.4 (reject stale money-field writes) contradicts handbook T39 "later arrival wins, other author notified" (lines 3002, 4155, 862-880).
+- A payer at 0%: the handbook says the difference goes to the payer; the code excludes 0% people (unconfirmed, lines 3800, 2739).
+- The handbook contradicts itself on the fallback target: PF-02 "largest share" (line 3800) vs S-EXP-SPLIT "first in member order" (line 2739). The code follows PF-02.
+- The negative-diff spreading rule is not in the handbook (unconfirmed).
+- T10 in the handbook reads 0.333 / 0.333 / 0.334 with no payer named; the engine gives the extra unit to the payer, so the result depends on who paid.
+
+**Answers found in the handbook for §10:**
+- Q3: persisted fields are `split_method` and `split_input` JSON plus `fx_rate_to_base` / `fx_rate_date` (lines 960, 1038-1040, 2778).
+- Q4: the overshoot difference goes to the payer; Equal and Shares 1:1 are not required to give identical results.
+- Q5: join order comes from `Member.joined_at`; members who left must still be included (invariant 4).
+- Q7: the exact messages are in lines 2618-2620 and 5267-5276.
+- Q8: percent has 2 decimals, shares are whole or decimal, amount max is 9,999,999 major units, description 1-80, members <= 100.
