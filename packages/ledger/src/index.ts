@@ -4,3 +4,7 @@ export type { PersonId, EntryShare, Payment, Allocation, LedgerEntry } from './t
 export { buildEntryShares, validateEntry } from './validate.js';
 export { splitEqual } from './split/equal.js';
 export { largestPayerIn } from './split/remainder.js';
+export { splitExact } from './split/exact.js';
+export { splitPercent } from './split/percent.js';
+export { splitShares } from './split/shares.js';
+export { splitAdjustment } from './split/adjustment.js';
