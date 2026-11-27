@@ -9,8 +9,8 @@ Branch: feat/core-engine
 | 2 | money: currencies and limits | done, reviewed | 1bd81c1 |
 | 3 | money: parse and format | done, reviewed | 006cae7 |
 | 4 | ledger: types and validation | done, reviewed | 2e0844c |
-| 5 | Equal split | in progress | |
-| 6 | Exact, Percent, Shares, Adjustment | not started | |
+| 5 | Equal split | done, reviewed | e0b4dfd |
+| 6 | Exact, Percent, Shares, Adjustment | in progress | |
 | 7 | Balance engine | not started | |
 | 8 | Simplify debts | not started | |
 | 9 | Property-based invariant tests | not started | |
