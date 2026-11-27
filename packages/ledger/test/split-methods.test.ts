@@ -141,28 +141,41 @@ describe('splitAdjustment', () => {
   });
 });
 
-describe('rounding difference never makes the payer negative (property counterexamples)', () => {
-  it('shares: tiny-weight payer is skipped when diff would go below zero', () => {
-    const ids = ['p0', 'p1', 'p2', 'p3', 'p4'];
-    const weights = [12, 4, 1, 11, 16];
-    const out = splitShares(
-      7n,
-      ids.map((personId, i) => ({ personId, weight: weights[i]! })),
-      [p('p3', 1n), p('p2', 6n)],
-    );
-    expect(out.reduce((s, x) => s + x.owed, 0n)).toBe(7n);
-    expect(out.every((x) => x.owed >= 0n)).toBe(true);
+describe('negative rounding diff the target cannot absorb is spread round-robin', () => {
+  const ids = (n: number) => Array.from({ length: n }, (_, i) => `p${i}`);
+  const sh = (w: number[]) => w.map((weight, i) => ({ personId: `p${i}`, weight }));
+  const owedOf = (xs: Allocation[]) => xs.map((x) => x.owed);
+
+  it('shares: tiny-weight payer skipped, largest gives up the unit', () => {
+    const out = splitShares(7n, sh([12, 4, 1, 11, 16]), [p('p3', 1n), p('p2', 6n)]);
+    expect(owedOf(out)).toEqual([2n, 1n, 0n, 2n, 2n]);
   });
 
-  it('percent: zero-percent payer is skipped when diff would go below zero', () => {
-    const ids = ['p0', 'p1', 'p2', 'p3', 'p4'];
+  it('percent: zero-percent payer skipped', () => {
     const bps = [0, 12, 86, 4822, 5080];
     const out = splitPercent(
       9999135n,
-      ids.map((personId, i) => ({ personId, basisPoints: bps[i]! })),
+      ids(5).map((personId, i) => ({ personId, basisPoints: bps[i]! })),
       [p('p0', 9999135n)],
     );
-    expect(out.reduce((s, x) => s + x.owed, 0n)).toBe(9999135n);
-    expect(out.every((x) => x.owed >= 0n)).toBe(true);
+    expect(owedOf(out)).toEqual([0n, 11999n, 85993n, 4821583n, 5079560n]);
+  });
+
+  it('shares 6n [3,3,3,1,1,1] no payers does not throw', () => {
+    expect(owedOf(splitShares(6n, sh([3, 3, 3, 1, 1, 1]), []))).toEqual(Array(6).fill(1n));
+  });
+
+  it('shares 8n [3,3,3,3,1,1,1,1] no payers does not throw', () => {
+    expect(owedOf(splitShares(8n, sh([3, 3, 3, 3, 1, 1, 1, 1]), []))).toEqual(Array(8).fill(1n));
+  });
+
+  it('percent 8n no payers does not throw', () => {
+    const bps = [1875, 1875, 1875, 1875, 625, 625, 625, 625];
+    const out = splitPercent(8n, ids(8).map((personId, i) => ({ personId, basisPoints: bps[i]! })), []);
+    expect(owedOf(out)).toEqual(Array(8).fill(1n));
+  });
+
+  it('shares 2n [1,1,1,1] removes from the first two', () => {
+    expect(owedOf(splitShares(2n, sh([1, 1, 1, 1]), []))).toEqual([0n, 0n, 1n, 1n]);
   });
 });

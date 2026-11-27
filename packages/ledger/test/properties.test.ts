@@ -2,10 +2,8 @@ import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { formatMinor, isAmountInRange, maxMinor, parseAmount } from '@hisabna/money';
 import {
-  LedgerError,
   assertZeroSum,
   computeNets,
-  largestPayerIn,
   simplifyDebts,
   splitPercent,
   splitShares,
@@ -44,6 +42,9 @@ describe('Invariant 2: nets are zero-sum per currency', () => {
         for (const nets of original.values()) assertZeroSum(nets);
         const withDeleted = computeNets(toLedger(cases, mask));
         for (const nets of withDeleted.values()) assertZeroSum(nets);
+        // deleted entries are left out: same as building from only the live ones
+        const live = cases.filter((_, i) => !mask[i]);
+        expect(withDeleted).toEqual(computeNets(toLedger(live)));
         // undelete: flip the flags back on the same entry objects
         const entries = toLedger(cases, mask);
         for (const en of entries) en.deleted = false;
@@ -114,8 +115,21 @@ describe('Equal split', () => {
           expect(owed.every((v) => v >= 0n)).toBe(true);
           const spread = owed.reduce((a, b) => (a > b ? a : b)) - owed.reduce((a, b) => (a < b ? a : b));
           const leftover = e.total % BigInt(e.members.length);
-          const payerIn = largestPayerIn(e.members, e.payments) !== null;
-          expect(spread <= (payerIn ? leftover : 1n)).toBe(true);
+          // independent oracle: largest paid (> 0n) among members, ties earliest in members
+          let recipient: string | null = null;
+          let best = 0n;
+          for (const m of e.members) {
+            const paid = e.payments.find((x) => x.personId === m)?.paid ?? 0n;
+            if (paid > best) {
+              best = paid;
+              recipient = m;
+            }
+          }
+          expect(spread <= (recipient !== null ? leftover : 1n)).toBe(true);
+          if (recipient !== null) {
+            const base = e.total / BigInt(e.members.length);
+            for (const a of e.owed) expect(a.owed).toBe(a.personId === recipient ? base + leftover : base);
+          }
         },
       ),
       cfg,
@@ -131,16 +145,7 @@ describe('Percent and Shares', () => {
     weights: number[],
   ) => {
     const n = BigInt(weights.length);
-    let owed;
-    try {
-      owed = run();
-    } catch (e) {
-      if (e instanceof LedgerError && e.code === 'NEGATIVE_SHARE') {
-        expect(total < n).toBe(true);
-        return;
-      }
-      throw e;
-    }
+    const owed = run(); // must never throw for valid input
     const W = kind === 'percent' ? 10000n : weights.reduce((a, b) => a + BigInt(b), 0n);
     expect(sum(owed.map((a) => a.owed))).toBe(total);
     owed.forEach((a, i) => {

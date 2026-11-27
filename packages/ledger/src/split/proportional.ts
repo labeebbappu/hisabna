@@ -31,13 +31,34 @@ export function splitProportional(
   const diff = total - out.reduce((s, x) => s + x.owed, 0n);
   if (diff === 0n) return out;
   const payer = largestPayerIn(ids, payments);
+  // Primary target: the largest payer in the split (only that person, never other
+  // payers), else the largest owed (first index on ties).
   let target = out.findIndex((x) => x.personId === payer);
-  if (target < 0 || out[target]!.owed + diff < 0n) {
+  if (target < 0) {
     target = 0;
     for (let i = 1; i < out.length; i++) if (out[i]!.owed > out[target]!.owed) target = i;
   }
   const t = out[target]!;
-  if (t.owed + diff < 0n) throw new LedgerError('NEGATIVE_SHARE');
-  t.owed += diff;
+  if (t.owed + diff >= 0n) {
+    t.owed += diff;
+    return out;
+  }
+  // The target cannot absorb a negative diff: remove |diff| units one at a time,
+  // round-robin over people ordered by rounded owed descending (ties: lower index),
+  // skipping anyone at 0n. Always completes since rounded owed sum to total + |diff|.
+  const order = out.map((_, i) => i).sort((a, b) => {
+    const d = out[b]!.owed - out[a]!.owed;
+    return d > 0n ? 1 : d < 0n ? -1 : a - b;
+  });
+  let remaining = -diff;
+  while (remaining > 0n) {
+    for (const i of order) {
+      if (remaining === 0n) break;
+      if (out[i]!.owed > 0n) {
+        out[i]!.owed -= 1n;
+        remaining -= 1n;
+      }
+    }
+  }
   return out;
 }
