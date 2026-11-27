@@ -8,3 +8,4 @@ export { splitExact } from './split/exact.js';
 export { splitPercent } from './split/percent.js';
 export { splitShares } from './split/shares.js';
 export { splitAdjustment } from './split/adjustment.js';
+export { computeNets, assertZeroSum } from './balance.js';
