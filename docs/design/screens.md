@@ -2,7 +2,20 @@
 
 Every MVP screen ID has a mockup except the Friends screens. Maps each MVP screen ID (HANDOFF.md §4) to its mockup. Mockups are a design canvas (not in the repo); names below are the artboard titles. Screens use the `@hisabna/tokens` palette: Ink `#101820` with Signal yellow `#FEE715`, dark by default with a light theme.
 
-Caveat: the handbook PDF was not available, so the mapping of S-SET-02 and the screen wording are assumptions to verify against it.
+Checked against the handbook PDF on 2026-11-27 (a first pass; fixes are in progress). Exact copy is in copy.md.
+
+## Where the design spec overrides the handbook
+
+The spec wins where they differ. The mockups follow the spec on these; confirm each with the owner of the product.
+
+| Topic | Handbook | Spec (mockups follow this) |
+|---|---|---|
+| Not-received payment | Status Disputed, comment thread, still counts until deleted | Payee or Owner can void it; it stays in the log |
+| Member leaves owing money | Removal blocked, settle up first | Owner can write off the debt as a ledger entry |
+| Claiming a placeholder name | Claimed at once unless linked to an account | Owner approves; Owner can release a name |
+| Conflicting edits to money fields | Later arrival wins, other author notified | Server rejects the stale write; user reviews both |
+| Guests recording payments | Open decision | Not allowed; guests can view and add expenses |
+| Deleted group | Permanently deleted after 30 days | Hidden after 30 days; entries kept 1 year |
 
 | ID | Screen | Mockup artboard(s) | Arabic (RTL) |
 |---|---|---|---|
@@ -23,8 +36,9 @@ Caveat: the handbook PDF was not available, so the mapping of S-SET-02 and the s
 | S-EXP-EDIT | Edit expense | Edit expense | no |
 | S-EXP-02 | Expense detail | Expense detail | no |
 | S-BAL-01 | Balances | Balances | Balances |
-| S-SET-01 | Record payment | Record payment | Record payment |
-| S-SET-02 | Payee confirm or dispute (assumed) | Confirm payment | no |
+| S-SET-01 | Choose a debt to settle | Choose a debt | no |
+| S-SET-02 | Record a payment | Record a payment, Settle: cash, bank transfer, part payment | Record a payment |
+| (S-SET-02 flow) | Payee answers Received or Not received | Confirm payment, Dispute and void payment | no |
 | S-ACT-01 | Activity | Activity | Activity |
 | S-ACC-01 | Account | Account | no |
 
