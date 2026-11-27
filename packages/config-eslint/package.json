@@ -9,5 +9,11 @@
   "dependencies": {
     "eslint": "catalog:",
     "typescript-eslint": "catalog:"
+  },
+  "peerDependencies": {
+    "typescript": "catalog:"
+  },
+  "devDependencies": {
+    "typescript": "catalog:"
   }
 }
