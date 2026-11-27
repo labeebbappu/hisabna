@@ -11,8 +11,8 @@ Branch: feat/core-engine
 | 4 | ledger: types and validation | done, reviewed | 2e0844c |
 | 5 | Equal split | done, reviewed | e0b4dfd |
 | 6 | Exact, Percent, Shares, Adjustment | done, reviewed | 26d2dde |
-| 7 | Balance engine | in progress | |
-| 8 | Simplify debts | not started | |
+| 7 | Balance engine | done, reviewed | aba4622 |
+| 8 | Simplify debts | in progress | |
 | 9 | Property-based invariant tests | not started | |
 | 10 | Lint rules and licence check | not started | |
 | F | Final whole-branch review | not started | |
