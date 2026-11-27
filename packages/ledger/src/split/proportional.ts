@@ -11,8 +11,9 @@ export function toWeight(x: number): bigint {
 /**
  * Splits `total` in proportion to `weights` (all >= 0, sum > 0), rounding each
  * share half-up, then applies the whole rounding difference to the largest
- * payer among the people listed (else, or if that would make the payer's share
- * negative, the largest owed, first on ties).
+ * payer among the people listed with weight > 0 (else, or if that would make the
+ * payer's share negative, the largest owed among them, first on ties). People
+ * with weight 0n are never the target of the rounding difference.
  */
 export function splitProportional(
   total: bigint,
@@ -30,13 +31,17 @@ export function splitProportional(
   }));
   const diff = total - out.reduce((s, x) => s + x.owed, 0n);
   if (diff === 0n) return out;
-  const payer = largestPayerIn(ids, payments);
-  // Primary target: the largest payer in the split (only that person, never other
-  // payers), else the largest owed (first index on ties).
+  // People with weight 0n are never the target. Primary target: the largest payer
+  // among the weighted people (only that person, never other payers), else the
+  // weighted person with the largest owed (first index on ties).
+  const weighted = entries.filter((e) => e.weight > 0n).map((e) => e.personId);
+  const payer = largestPayerIn(weighted, payments);
   let target = out.findIndex((x) => x.personId === payer);
   if (target < 0) {
-    target = 0;
-    for (let i = 1; i < out.length; i++) if (out[i]!.owed > out[target]!.owed) target = i;
+    target = entries.findIndex((e) => e.weight > 0n);
+    for (let i = target + 1; i < out.length; i++) {
+      if (entries[i]!.weight > 0n && out[i]!.owed > out[target]!.owed) target = i;
+    }
   }
   const t = out[target]!;
   if (t.owed + diff >= 0n) {

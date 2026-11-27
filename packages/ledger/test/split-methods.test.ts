@@ -179,3 +179,19 @@ describe('negative rounding diff the target cannot absorb is spread round-robin'
     expect(owedOf(splitShares(2n, sh([1, 1, 1, 1]), []))).toEqual([0n, 0n, 1n, 1n]);
   });
 });
+
+describe('a 0% person is never the target of the rounding difference', () => {
+  const pct = (bps: number[]) => bps.map((basisPoints, i) => ({ personId: 'ABCD'[i]!, basisPoints }));
+  const owedOf = (xs: Allocation[]) => xs.map((x) => x.owed);
+
+  it('0% payer is ineligible: largest owed (first on ties) takes the diff', () => {
+    // exact B 33.33, C 33.33, D 33.34 -> 33,33,33; sum 99, diff +1; A (0%) excluded; first largest is B
+    const out = splitPercent(100n, pct([0, 3333, 3333, 3334]), [p('A', 100n)]);
+    expect(owedOf(out)).toEqual([0n, 34n, 33n, 33n]);
+  });
+
+  it('a positive-weight payer still takes the diff when a 0% person pays more', () => {
+    const out = splitPercent(100n, pct([0, 3333, 3333, 3334]), [p('A', 60n), p('C', 40n)]);
+    expect(owedOf(out)).toEqual([0n, 33n, 34n, 33n]);
+  });
+});

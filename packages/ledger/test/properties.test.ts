@@ -184,6 +184,37 @@ describe('Percent and Shares', () => {
   });
 });
 
+describe('Percent: zero-weight people', () => {
+  it('a person at 0 basis points always owes 0n', () => {
+    const arb = arbWeighted.chain((b) =>
+      fc.array(fc.boolean(), { minLength: b.members.length, maxLength: b.members.length }).map((zero) => {
+        const bps = [...b.bps];
+        const keep = bps.findIndex((_, i) => !zero[i]);
+        const k = keep < 0 ? 0 : keep;
+        let moved = 0;
+        bps.forEach((v, i) => {
+          if (i !== k && (zero[i] ?? false)) {
+            moved += v;
+            bps[i] = 0;
+          }
+        });
+        bps[k] = bps[k]! + moved;
+        return { ...b, bps };
+      }),
+    );
+    fc.assert(
+      fc.property(arb, (b) => {
+        const out = splitPercent(b.total, b.members.map((personId, i) => ({ personId, basisPoints: b.bps[i]! })), b.payments);
+        expect(sum(out.map((a) => a.owed))).toBe(b.total);
+        out.forEach((a, i) => {
+          if (b.bps[i] === 0) expect(a.owed).toBe(0n);
+        });
+      }),
+      cfg,
+    );
+  });
+});
+
 describe('Determinism', () => {
   it('same input gives equal output for every method', () => {
     fc.assert(
