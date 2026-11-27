@@ -10,7 +10,7 @@ import {
   validateEntry,
 } from '../src/index.js';
 import type { LedgerEntry, PersonId } from '../src/index.js';
-import { CURRENCIES, JOIN_ORDER, arbEntry, arbEntryLarge, arbWeighted } from './arbitraries.js';
+import { CURRENCIES, JOIN_ORDER, arbBase, arbEntry, arbEntryLarge, arbWeighted } from './arbitraries.js';
 import type { EntryCase } from './arbitraries.js';
 
 const cfg = { numRuns: 1000 };
@@ -288,6 +288,39 @@ describe('Shares: zero-weight people', () => {
         out.forEach((a, i) => {
           if (b.weights[i] === 0) expect(a.owed).toBe(0n);
         });
+      }),
+      cfg,
+    );
+  });
+});
+
+describe('Shares: decimal string weights', () => {
+  const POOL = ['0', '0.01', '0.5', '1', '1.25', '2.5', '3'];
+  const hundredths = (w: string) => {
+    const [i = '0', f = ''] = w.split('.');
+    return BigInt(i) * 100n + BigInt(f.padEnd(2, '0'));
+  };
+  const arb = arbBase.chain((b) =>
+    fc
+      .array(fc.constantFrom(...POOL), { minLength: b.members.length, maxLength: b.members.length })
+      .filter((ws) => ws.some((w) => w !== '0'))
+      .map((ws) => ({ ...b, ws })),
+  );
+  it('sums to total, no negatives, zero weights owe 0n, at most one person outside [floor, ceil]', () => {
+    fc.assert(
+      fc.property(arb, (b) => {
+        const out = splitShares(b.total, b.members.map((personId, i) => ({ personId, weight: b.ws[i]! })), b.payments);
+        const W = b.ws.reduce((x, w) => x + hundredths(w), 0n);
+        expect(sum(out.map((a) => a.owed))).toBe(b.total);
+        let outside = 0;
+        out.forEach((a, i) => {
+          const w = hundredths(b.ws[i]!);
+          expect(a.owed >= 0n).toBe(true);
+          if (w === 0n) expect(a.owed).toBe(0n);
+          const num = b.total * w;
+          if (a.owed < num / W || a.owed > (num + W - 1n) / W) outside++;
+        });
+        expect(outside).toBeLessThanOrEqual(1);
       }),
       cfg,
     );

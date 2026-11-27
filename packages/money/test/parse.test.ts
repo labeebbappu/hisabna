@@ -61,6 +61,7 @@ describe('parseAmount', () => {
   it('keeps precedence: format, then decimals, then range', () => {
     expect(codeOf(() => parseAmount('abc', 'QAR'))).toBe('INVALID_AMOUNT');
     expect(codeOf(() => parseAmount('0.005', 'QAR'))).toBe('TOO_MANY_DECIMALS');
+    expect(codeOf(() => parseAmount('0.000', 'QAR'))).toBe('TOO_MANY_DECIMALS');
     expect(codeOf(() => parseAmount('99999999.005', 'QAR'))).toBe('TOO_MANY_DECIMALS');
   });
   it('accepts the maximum', () => {
