@@ -3,11 +3,15 @@
   "private": true,
   "license": "Apache-2.0",
   "packageManager": "pnpm@12.23.0",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
-    "lint": "turbo run lint"
+    "lint": "turbo run lint",
+    "licence-check": "node scripts/check-licenses.mjs",
+    "test:scripts": "node --test scripts/licence-expression.test.mjs"
   },
   "devDependencies": {
     "turbo": "2.11.13"
