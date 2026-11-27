@@ -45,7 +45,14 @@ These are required by the design spec or the exit tests (T-numbers are from HAND
 | Profile and payment details editing | Edit profile, Edit payment details |
 | Notifications: permission, batching, quiet hours | Turn on notifications, Notification settings |
 | Currency choice with 2- and 3-decimal examples | Currency picker |
+| Pin, mute, archive from Home | Home, group menu |
+| Change member role (Owner, Editor) | Change role |
+| Confirm leave, delete group, sign out | Leave group, Delete group, Sign out |
+| Balance with one person | Balance with a person |
+| Pay by cash, bank transfer, or part of a debt | Settle: cash, Settle: bank transfer, Settle: part payment |
+| App start and forced update | Splash, Update required |
+| Guest on the web: group and add expense | Web: group as a guest, Web: add expense as a guest |
 
 Not in MVP and not drawn: S-FRD-01..03 (Friends moved to a fast follow), S-EXP-SCAN, S-SRCH-01, S-TOT-01, S-CHT-01.
 
-Open gaps: Arabic for the screens marked "no"; real Arabic and English copy from the text catalogue (the mockup wording is a draft).
+Open gaps: Arabic is deferred (the MVP focus is English); the handbook PDF has not been cross-checked; real Arabic and English copy from the text catalogue (the mockup wording is a draft).
