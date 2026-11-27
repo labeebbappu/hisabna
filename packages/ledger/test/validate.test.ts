@@ -66,6 +66,17 @@ describe('buildEntryShares', () => {
   it('rejects duplicate payments', () => {
     expect(code(() => buildEntryShares([], [{ personId: 'A', paid: 1n }, { personId: 'A', paid: 1n }]))).toBe('DUPLICATE_PERSON');
   });
+  it('drops rows where paid and owed are both 0n', () => {
+    expect(
+      buildEntryShares([{ personId: 'A', owed: 10000n }, { personId: 'B', owed: 0n }], [{ personId: 'A', paid: 10000n }, { personId: 'Z', paid: 0n }]),
+    ).toEqual([s('A', 10000n, 10000n)]);
+  });
+  it('keeps a person who only paid or only owes', () => {
+    expect(buildEntryShares([{ personId: 'B', owed: 5n }, { personId: 'C', owed: 0n }], [{ personId: 'A', paid: 5n }])).toEqual([
+      s('B', 0n, 5n),
+      s('A', 5n, 0n),
+    ]);
+  });
   it('unions people with missing side 0n', () => {
     expect(buildEntryShares([{ personId: 'A', owed: 10000n }], [{ personId: 'B', paid: 10000n }])).toEqual([
       s('A', 0n, 10000n),
