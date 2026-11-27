@@ -6,8 +6,8 @@ Branch: feat/core-engine
 | # | Task | Status | Commits |
 |---|---|---|---|
 | 1 | Monorepo scaffold, licence, CI | done, reviewed | 49b7d69, fd98cb6 |
-| 2 | money: currencies and limits | in progress | |
-| 3 | money: parse and format | not started | |
+| 2 | money: currencies and limits | done, reviewed | 1bd81c1 |
+| 3 | money: parse and format | in progress | |
 | 4 | ledger: types and validation | not started | |
 | 5 | Equal split | not started | |
 | 6 | Exact, Percent, Shares, Adjustment | not started | |
