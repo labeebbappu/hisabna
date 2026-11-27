@@ -1,0 +1,71 @@
+/* Hisabna design tokens. Generated from src/tokens.ts: run `pnpm --filter @hisabna/tokens build`. */
+:root, [data-theme="dark"] {
+  --bg: #101820;
+  --surface: #19222c;
+  --surface-high: #243040;
+  --line: #2c3948;
+  --line-strong: #66758a;
+  --text: #f3f5f7;
+  --text-muted: #9aa6b2;
+  --accent: #fee715;
+  --on-accent: #101820;
+  --owed: #3dd6c6;
+  --owe: #ff7a59;
+  --focus: #fee715;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f5f6f8;
+    --surface: #ffffff;
+    --surface-high: #eceff3;
+    --line: #d8dee5;
+    --line-strong: #7a8794;
+    --text: #101820;
+    --text-muted: #56626f;
+    --accent: #fee715;
+    --on-accent: #101820;
+    --owed: #0b7a6b;
+    --owe: #b8431f;
+    --focus: #101820;
+    color-scheme: light;
+  }
+}
+[data-theme="light"] {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-high: #eceff3;
+  --line: #d8dee5;
+  --line-strong: #7a8794;
+  --text: #101820;
+  --text-muted: #56626f;
+  --accent: #fee715;
+  --on-accent: #101820;
+  --owed: #0b7a6b;
+  --owe: #b8431f;
+  --focus: #101820;
+  color-scheme: light;
+}
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-pill: 999px;
+  --font-sans: "Inter", "IBM Plex Sans Arabic", system-ui, sans-serif;
+  --font-arabic: "IBM Plex Sans Arabic", "Inter", system-ui, sans-serif;
+}
+.display-xl { font-size: 40px; line-height: 44px; font-weight: 800; letter-spacing: -0.02em; }
+.display-l { font-size: 32px; line-height: 36px; font-weight: 800; letter-spacing: -0.02em; }
+.amount { font-size: 28px; line-height: 32px; font-weight: 700; }
+.title { font-size: 20px; line-height: 28px; font-weight: 600; }
+.body { font-size: 16px; line-height: 24px; font-weight: 400; }
+.body-sm { font-size: 14px; line-height: 20px; font-weight: 400; }
+.label { font-size: 13px; line-height: 16px; font-weight: 600; }
+.caption { font-size: 12px; line-height: 16px; font-weight: 400; }
