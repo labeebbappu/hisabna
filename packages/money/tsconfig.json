@@ -1,0 +1,4 @@
+{
+  "extends": "@hisabna/config-ts/base.json",
+  "include": ["src", "test"]
+}
