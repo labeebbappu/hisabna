@@ -15,16 +15,28 @@ export const purePackageRules = {
     "no-restricted-globals": [
       "error",
       { name: "parseFloat", message: "Use integer minor-unit parsing, not floats." },
+      { name: "parseInt", message: "Use integer minor-unit parsing (BigInt of a validated string), not parseInt." },
+      { name: "Math", message: "Math is banned in pure money logic; use integer/bigint arithmetic." },
     ],
     "no-restricted-properties": [
       "error",
       { object: "Math", message: "Math.* is banned in pure money logic; use integer/bigint arithmetic." },
+      { object: "Number", property: "parseFloat", message: "Float parsing is banned in pure money logic." },
+      { object: "Number", property: "parseInt", message: "parseInt is banned in pure money logic; use BigInt on a validated string." },
     ],
     "no-restricted-syntax": [
       "error",
       {
         selector: "CallExpression[callee.name='Number']",
         message: "Number(...) coercion is banned; parse explicitly.",
+      },
+      {
+        selector: "MemberExpression[object.name='globalThis'][property.name=/^(Math|parseFloat|parseInt)$/]",
+        message: "globalThis.Math / parseFloat / parseInt are banned in pure money logic.",
+      },
+      {
+        selector: "MemberExpression[object.name='globalThis'][computed=true][property.value=/^(Math|parseFloat|parseInt)$/]",
+        message: "globalThis.Math / parseFloat / parseInt are banned in pure money logic.",
       },
     ],
     "no-restricted-imports": [
