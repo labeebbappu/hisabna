@@ -21,6 +21,24 @@ describe('parseAmount', () => {
   it('accepts Arabic-Indic digits and separator', () => {
     expect(parseAmount('١٠٠٫٥٠', 'QAR')).toBe(10050n);
   });
+  it('accepts Extended Arabic-Indic (Persian) digits', () => {
+    expect(parseAmount('\u06F1\u06F0\u06F0\u066B\u06F5\u06F0', 'QAR')).toBe(10050n);
+    expect(parseAmount('\u06F1\u06F2\u06F3\u06F4\u06F5\u06F6\u066B\u06F7\u06F8', 'QAR')).toBe(12345678n);
+    expect(parseAmount('\u06F9\u06F0\u06F7\u06F6\u06F5\u06F4', 'JPY')).toBe(907654n);
+  });
+  it('strips invisible direction marks anywhere', () => {
+    expect(parseAmount('\u200F100.50', 'QAR')).toBe(10050n);
+    expect(parseAmount('\u200E100.50\u200E', 'QAR')).toBe(10050n);
+    expect(parseAmount('\u0661\u0660\u0660\u061C\u066B\u0665\u0660', 'QAR')).toBe(10050n);
+    expect(parseAmount('1\u200F0\u200E0.\u061C50', 'QAR')).toBe(10050n);
+  });
+  it('accepts mixed Latin, Arabic-Indic and Persian digits', () => {
+    expect(parseAmount('1\u0660\u06F0.50', 'QAR')).toBe(10050n);
+    expect(parseAmount('\u0661\u06F0\u0660.5', 'QAR')).toBe(10050n);
+  });
+  it('still rejects marks-only input', () => {
+    expect(codeOf(() => parseAmount('\u200F\u200E', 'QAR'))).toBe('INVALID_AMOUNT');
+  });
   it('rejects invalid formats', () => {
     for (const s of ['100,50', 'abc', '', '-5', '+5', '1e3', '.5', '100.']) {
       expect(codeOf(() => parseAmount(s, 'QAR')), s).toBe('INVALID_AMOUNT');
