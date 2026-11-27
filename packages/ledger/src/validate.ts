@@ -35,6 +35,9 @@ export function validateEntry(total: bigint, shares: EntryShare[], currency: Cur
   }
   if (total <= 0n) throw new LedgerError('AMOUNT_NOT_POSITIVE');
   if (!isAmountInRange(total, currency)) throw new LedgerError('AMOUNT_OUT_OF_RANGE');
+  // Handbook T17 (flow at lines 2608-2617: checked before the balance check): an entry
+  // involving one person cannot change any balance. All-zero rows are ignored.
+  if (shares.filter((x) => x.paid !== 0n || x.owed !== 0n).length < 2) throw new LedgerError('SINGLE_PERSON');
   let paid = 0n;
   let owed = 0n;
   for (const s of shares) {
@@ -42,7 +45,4 @@ export function validateEntry(total: bigint, shares: EntryShare[], currency: Cur
     owed += s.owed;
   }
   if (paid !== total || owed !== total) throw new LedgerError('NOT_BALANCED');
-  // Handbook T17: an entry involving one person cannot change any balance. Rows are
-  // unique by person (checked above), so the row count is the person count.
-  if (shares.length < 2) throw new LedgerError('SINGLE_PERSON');
 }

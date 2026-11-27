@@ -9,6 +9,7 @@ import {
   splitExact,
   splitPercent,
   splitShares,
+  validateEntry,
 } from '../src/index.js';
 import type { Allocation, EntryShare, Payment, PersonId } from '../src/index.js';
 
@@ -150,8 +151,20 @@ function build(r: Raw): EntryCase | null {
     throw e;
   }
   const shares = buildEntryShares(owed, payments);
-  // One person paying and owing everything is rejected by design (SINGLE_PERSON, handbook T17).
-  if (shares.length < 2) return null;
+  // One person paying and owing everything is rejected by design (SINGLE_PERSON, handbook T17):
+  // check that, then drop the case from the generated set.
+  if (shares.length < 2) {
+    let thrown: unknown;
+    try {
+      validateEntry(total, shares, currency);
+    } catch (e) {
+      thrown = e;
+    }
+    if (!(thrown instanceof LedgerError) || thrown.code !== 'SINGLE_PERSON') {
+      throw new Error('a single-person entry must be rejected with SINGLE_PERSON');
+    }
+    return null;
+  }
   return { currency, total, members, payments, method, weights, rerun: run, owed, shares };
 }
 

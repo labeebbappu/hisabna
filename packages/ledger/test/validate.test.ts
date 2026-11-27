@@ -22,13 +22,13 @@ describe('validateEntry', () => {
     ).not.toThrow();
   });
   it('NOT_BALANCED when owed sum is short', () => {
-    expect(code(() => validateEntry(10000n, [s('A', 10000n, 9999n)], 'QAR'))).toBe('NOT_BALANCED');
+    expect(code(() => validateEntry(10000n, [s('A', 10000n, 5000n), s('B', 0n, 4999n)], 'QAR'))).toBe('NOT_BALANCED');
   });
   it('NOT_BALANCED when paid sum is short', () => {
-    expect(code(() => validateEntry(10000n, [s('A', 9999n, 10000n)], 'QAR'))).toBe('NOT_BALANCED');
+    expect(code(() => validateEntry(10000n, [s('A', 9999n, 5000n), s('B', 0n, 5000n)], 'QAR'))).toBe('NOT_BALANCED');
   });
   it('NOT_BALANCED when paid = owed but differ from total', () => {
-    expect(code(() => validateEntry(10000n, [s('A', 10001n, 10001n)], 'QAR'))).toBe('NOT_BALANCED');
+    expect(code(() => validateEntry(10000n, [s('A', 10001n, 5000n), s('B', 0n, 5001n)], 'QAR'))).toBe('NOT_BALANCED');
   });
   it('AMOUNT_NOT_POSITIVE for zero total', () => {
     expect(code(() => validateEntry(0n, [s('A', 0n, 0n)], 'QAR'))).toBe('AMOUNT_NOT_POSITIVE');
@@ -57,8 +57,15 @@ describe('validateEntry', () => {
   it('two people are enough even when one pays and owes 0', () => {
     expect(() => validateEntry(10000n, [s('Ali', 10000n, 0n), s('Sara', 0n, 10000n)], 'QAR')).not.toThrow();
   });
-  it('SINGLE_PERSON comes after NOT_BALANCED', () => {
-    expect(code(() => validateEntry(10000n, [s('Ali', 10000n, 9999n)], 'QAR'))).toBe('NOT_BALANCED');
+  it('SINGLE_PERSON comes before NOT_BALANCED (handbook flow, lines 2608-2617)', () => {
+    expect(code(() => validateEntry(10000n, [s('Ali', 9999n, 10000n)], 'QAR'))).toBe('SINGLE_PERSON');
+  });
+  it('SINGLE_PERSON comes after the total, range, duplicate and negative checks', () => {
+    expect(code(() => validateEntry(0n, [s('Ali', 0n, 0n)], 'QAR'))).toBe('AMOUNT_NOT_POSITIVE');
+    expect(code(() => validateEntry(10000n, [s('Ali', 10001n, -1n)], 'QAR'))).toBe('NEGATIVE_SHARE');
+  });
+  it('all-zero rows are ignored: Ali alone plus a zero row for Sara is SINGLE_PERSON', () => {
+    expect(code(() => validateEntry(10000n, [s('Ali', 10000n, 10000n), s('Sara', 0n, 0n)], 'QAR'))).toBe('SINGLE_PERSON');
   });
   it('EMPTY_ENTRY', () => {
     expect(code(() => validateEntry(10000n, [], 'QAR'))).toBe('EMPTY_ENTRY');
