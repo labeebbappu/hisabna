@@ -28,6 +28,24 @@ Caveat: the handbook PDF was not available, so the mapping of S-SET-02 and the s
 | S-ACT-01 | Activity | Activity | Activity |
 | S-ACC-01 | Account | Account | no |
 
+## Flows and states beyond the screen IDs
+
+These are required by the design spec or the exit tests (T-numbers are from HANDOFF.md) and have their own mockups, all English only.
+
+| Flow | Mockup |
+|---|---|
+| Conflicting edits to money fields (spec §7.5) | Review conflicting edits |
+| Payee disputes or voids a payment (T33) | Dispute and void payment |
+| OTP lockout after 5 wrong codes (T03) | Too many attempts, Wrong code, Code expired |
+| No network at sign-in | Sign in, no network |
+| Join by code, invite preview (first names only) | Join with code, Invite preview |
+| Invalid invite, group full (100 members) | Invite not valid, Group is full |
+| Owner write-off when a member leaves owing money | Remove member and write-off |
+| Restore deleted entries (1 year) and groups (30 days) | Restore deleted items |
+| Profile and payment details editing | Edit profile, Edit payment details |
+| Notifications: permission, batching, quiet hours | Turn on notifications, Notification settings |
+| Currency choice with 2- and 3-decimal examples | Currency picker |
+
 Not in MVP and not drawn: S-FRD-01..03 (Friends moved to a fast follow), S-EXP-SCAN, S-SRCH-01, S-TOT-01, S-CHT-01.
 
 Open gaps: Arabic for the screens marked "no"; real Arabic and English copy from the text catalogue (the mockup wording is a draft).
