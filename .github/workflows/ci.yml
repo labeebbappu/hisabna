@@ -28,4 +28,6 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm licence-check
+      - run: pnpm test:scripts
       - run: pnpm turbo run lint typecheck test

@@ -13,8 +13,8 @@ Branch: work now flows through task branches into `dev` (see docs/WORKFLOW.md); 
 | 6 | Exact, Percent, Shares, Adjustment | done, reviewed | 26d2dde |
 | 7 | Balance engine | done, reviewed | aba4622 |
 | 8 | Simplify debts | done, reviewed | 08ab083 |
-| 9 | Property-based invariant tests | done (79 ledger tests pass) | cd0a10f, c22c230 |
-| 10 | Lint rules and licence check | not started | |
+| 9 | Property-based invariant tests | done, reviewed | cd0a10f, c22c230 |
+| 10 | Lint rules and licence check | done, reviewed | (this PR) |
 | F | Final whole-branch review | not started | |
 
 Open items: product spec rev 18 PDF; OTP provider; hosting region.
