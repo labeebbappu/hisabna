@@ -9,3 +9,5 @@ export { splitPercent } from './split/percent.js';
 export { splitShares } from './split/shares.js';
 export { splitAdjustment } from './split/adjustment.js';
 export { computeNets, assertZeroSum } from './balance.js';
+export { simplifyDebts } from './simplify.js';
+export type { Transfer } from './simplify.js';
