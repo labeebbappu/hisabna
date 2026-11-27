@@ -175,6 +175,23 @@ describe('negative rounding diff the target cannot absorb is spread round-robin'
     expect(owedOf(out)).toEqual(Array(8).fill(1n));
   });
 
+  it('shares 9n [1,1,1,1,1,1,9]: removal follows rounding excess, not rounded owed', () => {
+    // exact 0.6 x6 (round up, excess +6), 5.4 (rounds to 5, excess -6); sum 11, diff -2;
+    // payer p0 (owed 1) cannot absorb -2, so the two highest-excess people p0, p1 lose a unit.
+    const out = splitShares(9n, sh([1, 1, 1, 1, 1, 1, 9]), [p('p0', 9n)]);
+    expect(owedOf(out)).toEqual([0n, 0n, 1n, 1n, 1n, 1n, 5n]);
+  });
+
+  it('toWeight rejects unsafe integers', () => {
+    const big = 2 ** 53;
+    expect(code(() => splitShares(100n, [{ personId: 'A', weight: big }, { personId: 'B', weight: 1 }], []))).toBe('BAD_INPUT');
+    expect(code(() => splitShares(100n, [{ personId: 'A', weight: big + 1 }, { personId: 'B', weight: 1 }], []))).toBe('BAD_INPUT');
+    expect(
+      code(() => splitPercent(100n, [{ personId: 'A', basisPoints: big }, { personId: 'B', basisPoints: 1 }], [])),
+    ).toBe('BAD_INPUT');
+    expect(code(() => splitShares(100n, [{ personId: 'A', weight: 2 ** 53 - 1 }, { personId: 'B', weight: 1 }], []))).toBeUndefined();
+  });
+
   it('shares 2n [1,1,1,1] removes from the first two', () => {
     expect(owedOf(splitShares(2n, sh([1, 1, 1, 1]), []))).toEqual([0n, 0n, 1n, 1n]);
   });

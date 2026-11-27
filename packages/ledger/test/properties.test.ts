@@ -184,6 +184,49 @@ describe('Percent and Shares', () => {
   });
 });
 
+describe('Rounding fallback: at most one person leaves [floor(exact), ceil(exact)]', () => {
+  const outside = (total: bigint, W: bigint, weights: number[], owed: bigint[]) =>
+    owed.filter((o, i) => {
+      const num = total * BigInt(weights[i]!);
+      return o < num / W || o > (num + W - 1n) / W;
+    }).length;
+
+  it('holds for arbitrary shares and percent', () => {
+    fc.assert(
+      fc.property(arbWeighted, (b) => {
+        const sh = splitShares(b.total, b.members.map((personId, i) => ({ personId, weight: b.weights[i]! })), b.payments);
+        const W = b.weights.reduce((x, y) => x + BigInt(y), 0n);
+        expect(outside(b.total, W, b.weights, sh.map((a) => a.owed))).toBeLessThanOrEqual(1);
+        const pc = splitPercent(b.total, b.members.map((personId, i) => ({ personId, basisPoints: b.bps[i]! })), b.payments);
+        expect(outside(b.total, 10000n, b.bps, pc.map((a) => a.owed))).toBeLessThanOrEqual(1);
+      }),
+      cfg,
+    );
+  });
+
+  it('holds for many small weights next to one outlier with a tiny total', () => {
+    const arb = fc.record({
+      small: fc.array(fc.integer({ min: 1, max: 3 }), { minLength: 2, maxLength: 8 }),
+      big: fc.integer({ min: 4, max: 60 }),
+      total: fc.bigInt({ min: 1n, max: 40n }),
+      payer: fc.nat({ max: 8 }),
+      paid: fc.boolean(),
+    });
+    fc.assert(
+      fc.property(arb, ({ small, big, total, payer, paid }) => {
+        const weights = [...small, big];
+        const members = weights.map((_, i) => `p${i}`);
+        const payments = paid ? [{ personId: members[payer % members.length]!, paid: total }] : [];
+        const out = splitShares(total, members.map((personId, i) => ({ personId, weight: weights[i]! })), payments);
+        const W = weights.reduce((x, y) => x + BigInt(y), 0n);
+        expect(sum(out.map((a) => a.owed))).toBe(total);
+        expect(outside(total, W, weights, out.map((a) => a.owed))).toBeLessThanOrEqual(1);
+      }),
+      cfg,
+    );
+  });
+});
+
 describe('Percent: zero-weight people', () => {
   it('a person at 0 basis points always owes 0n', () => {
     const arb = arbWeighted.chain((b) =>
