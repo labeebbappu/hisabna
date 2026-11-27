@@ -113,11 +113,48 @@ describe('splitShares', () => {
     );
     expect(owedOf(100n, out)).toEqual([33n, 33n, 34n]);
   });
-  it('weight 0 or non-integer is BAD_INPUT', () => {
-    expect(code(() => splitShares(100n, [{ personId: 'A', weight: 0 }, { personId: 'B', weight: 1 }], []))).toBe(
-      'BAD_INPUT',
+  it('T16: decimal weights as strings, 2.5 / 1 / 1 on 450.00 -> 250.00 / 100.00 / 100.00', () => {
+    // W = 450 hundredths; 45000 * 250 / 450 = 25000, 45000 * 100 / 450 = 10000, twice.
+    const out = splitShares(
+      45000n,
+      [
+        { personId: 'A', weight: '2.5' },
+        { personId: 'B', weight: '1' },
+        { personId: 'C', weight: '1' },
+      ],
+      [p('A', 45000n)],
     );
+    expect(owedOf(45000n, out)).toEqual([25000n, 10000n, 10000n]);
+  });
+  it('decimal weight 5.5', () => {
+    const out = splitShares(10000n, [{ personId: 'A', weight: '5.5' }, { personId: 'B', weight: '4.5' }], []);
+    expect(owedOf(10000n, out)).toEqual([5500n, 4500n]);
+  });
+  it('number weights must be integers: 2.5 is BAD_INPUT', () => {
+    expect(code(() => splitShares(45000n, [{ personId: 'A', weight: 2.5 }, { personId: 'B', weight: 1 }], []))).toBe('BAD_INPUT');
     expect(code(() => splitShares(100n, [{ personId: 'A', weight: 1.5 }], []))).toBe('BAD_INPUT');
+  });
+  it('weight 0 gets 0n and is never charged the rounding difference', () => {
+    // exact 50.5 each, half-up 51 + 51 = 102, diff -1; A (weight 0) is not eligible, so first weighted person B takes it.
+    const out = splitShares(
+      101n,
+      [{ personId: 'A', weight: '0' }, { personId: 'B', weight: 1 }, { personId: 'C', weight: '1' }],
+      [p('A', 101n)],
+    );
+    expect(owedOf(101n, out)).toEqual([0n, 50n, 51n]);
+    expect(owedOf(100n, splitShares(100n, [{ personId: 'A', weight: 0 }, { personId: 'B', weight: 1 }], []))).toEqual([0n, 100n]);
+  });
+  it('all-zero weights are BAD_INPUT', () => {
+    expect(code(() => splitShares(100n, [{ personId: 'A', weight: 0 }, { personId: 'B', weight: '0.00' }], []))).toBe('BAD_INPUT');
+  });
+  it('malformed, negative and non-finite weights are BAD_INPUT', () => {
+    for (const w of ['1.234', '\u0661', '-1', '', '.5', '1.', '1e3', ' 1', '+1', -1, Number.NaN, Number.POSITIVE_INFINITY] as (string | number)[]) {
+      expect(code(() => splitShares(100n, [{ personId: 'A', weight: w }, { personId: 'B', weight: 1 }], [])), String(w)).toBe('BAD_INPUT');
+    }
+  });
+  it('duplicates and empty', () => {
+    expect(code(() => splitShares(100n, [{ personId: 'A', weight: 1 }, { personId: 'A', weight: '2' }], []))).toBe('DUPLICATE_PERSON');
+    expect(code(() => splitShares(100n, [], []))).toBe('BAD_INPUT');
   });
 });
 

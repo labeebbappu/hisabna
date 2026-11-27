@@ -273,6 +273,27 @@ describe('Percent: zero-weight people', () => {
   });
 });
 
+describe('Shares: zero-weight people', () => {
+  it('a person with weight 0 always owes 0n', () => {
+    const arb = arbWeighted.chain((b) =>
+      fc.array(fc.boolean(), { minLength: b.members.length, maxLength: b.members.length }).map((zero) => {
+        const weights = b.weights.map((w, i) => (zero[i] === true && i > 0 ? 0 : w));
+        return { ...b, weights };
+      }),
+    );
+    fc.assert(
+      fc.property(arb, (b) => {
+        const out = splitShares(b.total, b.members.map((personId, i) => ({ personId, weight: b.weights[i]! })), b.payments);
+        expect(sum(out.map((a) => a.owed))).toBe(b.total);
+        out.forEach((a, i) => {
+          if (b.weights[i] === 0) expect(a.owed).toBe(0n);
+        });
+      }),
+      cfg,
+    );
+  });
+});
+
 describe('Determinism', () => {
   it('same input gives equal output for every method', () => {
     fc.assert(
