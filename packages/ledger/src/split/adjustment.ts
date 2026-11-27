@@ -2,9 +2,13 @@ import { LedgerError } from '../errors.js';
 import type { Allocation, Payment, PersonId } from '../types.js';
 import { splitEqual } from './equal.js';
 
-// Definition of Adjustment is unconfirmed against product spec: each adjustment
-// is a signed extra amount that person owes; the rest (total - sum of
+// provisional: handbook gives no worked example. Each adjustment is a signed
+// extra amount that person owes; the signed remainder (total - sum of
 // adjustments) is split equally among members, then adjustments are added.
+// A negative remainder is split on its absolute value with the same equal-split
+// rules and subtracted (so the payer, who gets the leftover, is reduced the most).
+// The only requirement is that every final amount is >= 0 (handbook line 5179).
+// Pass `members` in group join order (`Member.joined_at`): ties depend on it.
 export function splitAdjustment(
   total: bigint,
   members: PersonId[],
@@ -21,10 +25,10 @@ export function splitAdjustment(
     adjSum += adj.owed;
   }
   const remainder = total - adjSum;
-  if (remainder < 0n) throw new LedgerError('NEGATIVE_SHARE');
+  const negative = remainder < 0n;
   const adjBy = new Map(adjustments.map((x) => [x.personId, x.owed] as const));
-  return splitEqual(remainder, members, payments).map((x) => {
-    const owed = x.owed + (adjBy.get(x.personId) ?? 0n);
+  return splitEqual(negative ? -remainder : remainder, members, payments).map((x) => {
+    const owed = (negative ? -x.owed : x.owed) + (adjBy.get(x.personId) ?? 0n);
     if (owed < 0n) throw new LedgerError('NEGATIVE_SHARE');
     return { personId: x.personId, owed };
   });

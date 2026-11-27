@@ -163,6 +163,21 @@ describe('splitAdjustment', () => {
     const out = splitAdjustment(10000n, ['A', 'B', 'C'], [a('A', 1000n)], [p('A', 10000n)]);
     expect(owedOf(10000n, out)).toEqual([4000n, 3000n, 3000n]);
   });
+  it('adjustments above the total are fine when every result is >= 0', () => {
+    // remainder -2000 -> equal share -1000 each -> 6000 - 1000 = 5000 each
+    const out = splitAdjustment(10000n, ['A', 'B'], [a('A', 6000n), a('B', 6000n)], [p('A', 10000n)]);
+    expect(owedOf(10000n, out)).toEqual([5000n, 5000n]);
+  });
+  it('remainder -1n: the largest payer takes the larger reduction', () => {
+    // |remainder| 1 over 3 members: base 0, leftover 1 goes to payer B, so B owes 2500 - 1.
+    const adj = [a('A', 5000n), a('B', 2500n), a('C', 2501n)];
+    expect(owedOf(10000n, splitAdjustment(10000n, ['A', 'B', 'C'], adj, [p('B', 10000n)]))).toEqual([5000n, 2499n, 2501n]);
+    // no payer among members: first member takes the unit
+    expect(owedOf(10000n, splitAdjustment(10000n, ['A', 'B', 'C'], adj, []))).toEqual([4999n, 2500n, 2501n]);
+  });
+  it('a negative result after a negative remainder is NEGATIVE_SHARE', () => {
+    expect(code(() => splitAdjustment(100n, ['A', 'B'], [a('A', 200n), a('B', 0n)], []))).toBe('NEGATIVE_SHARE');
+  });
   it('negative adjustment that stays valid', () => {
     const out = splitAdjustment(10000n, ['A', 'B'], [a('A', -9000n)], []);
     expect(owedOf(10000n, out)).toEqual([500n, 9500n]);

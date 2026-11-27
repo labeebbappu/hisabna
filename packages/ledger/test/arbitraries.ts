@@ -131,7 +131,8 @@ function build(r: Raw): EntryCase | null {
       break;
     }
     case 'adjustment': {
-      const bound = total / BigInt(4 * n);
+      // up to 1.5x the total across people, so some cases exercise a negative remainder
+      const bound = (3n * total) / BigInt(2 * n);
       const adjustments = members
         .map((personId, i) => ({ personId, owed: (bound * r.adjScale[i]!) / 1000n, on: r.adjMask[i]! }))
         .filter((a) => a.on)
