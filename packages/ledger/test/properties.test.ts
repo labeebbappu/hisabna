@@ -10,7 +10,7 @@ import {
   validateEntry,
 } from '../src/index.js';
 import type { LedgerEntry, PersonId } from '../src/index.js';
-import { CURRENCIES, JOIN_ORDER, arbEntry, arbWeighted } from './arbitraries.js';
+import { CURRENCIES, JOIN_ORDER, arbEntry, arbEntryLarge, arbWeighted } from './arbitraries.js';
 import type { EntryCase } from './arbitraries.js';
 
 const cfg = { numRuns: 1000 };
@@ -30,6 +30,21 @@ describe('Invariant 1: every built entry validates', () => {
         expect(sum(e.shares.map((s) => s.paid))).toBe(e.total);
       }),
       cfg,
+    );
+  });
+});
+
+describe('Groups up to 100 members', () => {
+  it('every built entry validates and nets are zero-sum', () => {
+    fc.assert(
+      fc.property(arbEntryLarge, (e) => {
+        expect(() => validateEntry(e.total, e.shares, e.currency)).not.toThrow();
+        expect(sum(e.owed.map((a) => a.owed))).toBe(e.total);
+        const nets = computeNets(toLedger([e]));
+        for (const n of nets.values()) assertZeroSum(n);
+        expect(e.rerun()).toEqual(e.owed);
+      }),
+      { numRuns: 100 },
     );
   });
 });
