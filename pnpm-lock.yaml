@@ -228,9 +228,15 @@ importers:
         specifier: workspace:*
         version: link:../money
     devDependencies:
+      '@hisabna/config-eslint':
+        specifier: workspace:*
+        version: link:../config-eslint
       '@hisabna/config-ts':
         specifier: workspace:*
         version: link:../config-ts
+      eslint:
+        specifier: 'catalog:'
+        version: 10.15.0
       fast-check:
         specifier: 'catalog:'
         version: 4.11.0
@@ -243,9 +249,15 @@ importers:
 
   packages/money:
     devDependencies:
+      '@hisabna/config-eslint':
+        specifier: workspace:*
+        version: link:../config-eslint
       '@hisabna/config-ts':
         specifier: workspace:*
         version: link:../config-ts
+      eslint:
+        specifier: 'catalog:'
+        version: 10.15.0
       typescript:
         specifier: 'catalog:'
         version: 6.0.3

@@ -4,8 +4,11 @@
   "private": true,
   "license": "Apache-2.0",
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
+    "lint": "eslint .",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
@@ -13,7 +16,9 @@
     "@hisabna/money": "workspace:*"
   },
   "devDependencies": {
+    "@hisabna/config-eslint": "workspace:*",
     "@hisabna/config-ts": "workspace:*",
+    "eslint": "catalog:",
     "fast-check": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
