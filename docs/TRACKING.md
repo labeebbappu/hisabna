@@ -12,8 +12,8 @@ Branch: feat/core-engine
 | 5 | Equal split | done, reviewed | e0b4dfd |
 | 6 | Exact, Percent, Shares, Adjustment | done, reviewed | 26d2dde |
 | 7 | Balance engine | done, reviewed | aba4622 |
-| 8 | Simplify debts | in progress | |
-| 9 | Property-based invariant tests | not started | |
+| 8 | Simplify debts | done, reviewed | 08ab083 |
+| 9 | Property-based invariant tests | in progress | |
 | 10 | Lint rules and licence check | not started | |
 | F | Final whole-branch review | not started | |
 
