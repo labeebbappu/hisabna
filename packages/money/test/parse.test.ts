@@ -49,10 +49,19 @@ describe('parseAmount', () => {
     expect(codeOf(() => parseAmount('1.5', 'JPY'))).toBe('TOO_MANY_DECIMALS');
     expect(codeOf(() => parseAmount('500.0', 'JPY'))).toBe('TOO_MANY_DECIMALS');
   });
-  it('rejects out of range', () => {
-    expect(codeOf(() => parseAmount('9999999.001', 'KWD'))).toBe('OUT_OF_RANGE');
-    expect(codeOf(() => parseAmount('10000000', 'QAR'))).toBe('OUT_OF_RANGE');
-    expect(codeOf(() => parseAmount('0', 'QAR'))).toBe('OUT_OF_RANGE');
+  it('rejects too-large amounts', () => {
+    expect(codeOf(() => parseAmount('9999999.001', 'KWD'))).toBe('AMOUNT_TOO_LARGE');
+    expect(codeOf(() => parseAmount('10000000', 'QAR'))).toBe('AMOUNT_TOO_LARGE');
+  });
+  it('rejects zero amounts', () => {
+    expect(codeOf(() => parseAmount('0', 'QAR'))).toBe('AMOUNT_NOT_POSITIVE');
+    expect(codeOf(() => parseAmount('0.00', 'QAR'))).toBe('AMOUNT_NOT_POSITIVE');
+    expect(codeOf(() => parseAmount('0.000', 'KWD'))).toBe('AMOUNT_NOT_POSITIVE');
+  });
+  it('keeps precedence: format, then decimals, then range', () => {
+    expect(codeOf(() => parseAmount('abc', 'QAR'))).toBe('INVALID_AMOUNT');
+    expect(codeOf(() => parseAmount('0.005', 'QAR'))).toBe('TOO_MANY_DECIMALS');
+    expect(codeOf(() => parseAmount('99999999.005', 'QAR'))).toBe('TOO_MANY_DECIMALS');
   });
   it('accepts the maximum', () => {
     expect(parseAmount('9999999', 'QAR')).toBe(999999900n);

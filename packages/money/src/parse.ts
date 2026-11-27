@@ -22,6 +22,7 @@ export function parseAmount(input: string, code: CurrencyCode): bigint {
   const [intPart = '', fracPart = ''] = normalized.split('.');
   if (fracPart.length > decimals) throw new MoneyError('TOO_MANY_DECIMALS');
   const minor = BigInt(intPart + fracPart.padEnd(decimals, '0'));
-  if (minor <= 0n || minor > maxMinor(code)) throw new MoneyError('OUT_OF_RANGE');
+  if (minor <= 0n) throw new MoneyError('AMOUNT_NOT_POSITIVE');
+  if (minor > maxMinor(code)) throw new MoneyError('AMOUNT_TOO_LARGE');
   return minor;
 }
