@@ -1,8 +1,23 @@
 name: CI
 on:
   push:
+    branches: [main, staging, dev]
   pull_request:
 jobs:
+  dco:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check Signed-off-by on every commit
+        run: |
+          bad=0
+          for c in $(git rev-list --no-merges origin/${{ github.base_ref }}..HEAD); do
+            git show -s --format=%B $c | grep -q '^Signed-off-by: ' || { echo "Missing sign-off: $c"; bad=1; }
+          done
+          exit $bad
   ci:
     runs-on: ubuntu-latest
     steps:
