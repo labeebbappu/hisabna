@@ -152,6 +152,12 @@ describe('splitShares', () => {
       expect(code(() => splitShares(100n, [{ personId: 'A', weight: w }, { personId: 'B', weight: 1 }], [])), String(w)).toBe('BAD_INPUT');
     }
   });
+  it('non-string, non-number weights are BAD_INPUT, not a TypeError', () => {
+    const bad = [['2.5'], 2n, { toString: () => '2.5' }, null, undefined, true] as unknown as (string | number)[];
+    for (const w of bad) {
+      expect(code(() => splitShares(100n, [{ personId: 'A', weight: w }, { personId: 'B', weight: 1 }], [])), String(w)).toBe('BAD_INPUT');
+    }
+  });
   it('duplicates and empty', () => {
     expect(code(() => splitShares(100n, [{ personId: 'A', weight: 1 }, { personId: 'A', weight: '2' }], []))).toBe('DUPLICATE_PERSON');
     expect(code(() => splitShares(100n, [], []))).toBe('BAD_INPUT');

@@ -8,7 +8,7 @@ const DECIMAL_WEIGHT = /^[0-9]+(\.[0-9]{1,2})?$/;
 /** Exact weight in hundredths. Numbers are whole shares only; decimals must be strings. */
 function toHundredths(w: number | string): bigint {
   if (typeof w === 'number') return toWeight(w) * 100n;
-  if (!DECIMAL_WEIGHT.test(w)) throw new LedgerError('BAD_INPUT');
+  if (typeof w !== 'string' || !DECIMAL_WEIGHT.test(w)) throw new LedgerError('BAD_INPUT');
   const [intPart = '', fracPart = ''] = w.split('.');
   return BigInt(intPart) * 100n + BigInt(fracPart.padEnd(2, '0'));
 }
