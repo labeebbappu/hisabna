@@ -1,4 +1,8 @@
-export type CurrencyCode = 'QAR' | 'SAR' | 'AED' | 'KWD' | 'BHD' | 'OMR' | 'JPY' | 'USD';
+import { MoneyError } from './errors.js';
+
+export const CURRENCY_CODES = ['QAR', 'SAR', 'AED', 'KWD', 'BHD', 'OMR', 'JPY', 'USD'] as const;
+
+export type CurrencyCode = (typeof CURRENCY_CODES)[number];
 
 const DECIMALS: Record<CurrencyCode, 0 | 2 | 3> = {
   QAR: 2,
@@ -11,7 +15,14 @@ const DECIMALS: Record<CurrencyCode, 0 | 2 | 3> = {
   USD: 2,
 };
 
+/** Runtime check: codes cross trust boundaries (API, storage), so types alone are not enough. */
+export function isCurrencyCode(x: unknown): x is CurrencyCode {
+  return typeof x === 'string' && Object.hasOwn(DECIMALS, x);
+}
+
+/** Throws MoneyError('UNKNOWN_CURRENCY') for anything that is not a supported code. */
 export function decimalsOf(code: CurrencyCode): 0 | 2 | 3 {
+  if (!isCurrencyCode(code)) throw new MoneyError('UNKNOWN_CURRENCY');
   return DECIMALS[code];
 }
 

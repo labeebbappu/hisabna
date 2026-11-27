@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { maxMinor } from '@hisabna/money';
+import { MoneyError, maxMinor } from '@hisabna/money';
+import type { CurrencyCode } from '@hisabna/money';
 import { buildEntryShares, validateEntry, LedgerError } from '../src/index.js';
 import type { EntryShare } from '../src/index.js';
 
@@ -38,6 +39,17 @@ describe('validateEntry', () => {
   });
   it('NEGATIVE_SHARE', () => {
     expect(code(() => validateEntry(10000n, [s('A', 10001n, -1n), s('B', 0n, 10001n)], 'QAR'))).toBe('NEGATIVE_SHARE');
+  });
+  it('unknown currency throws a typed MoneyError UNKNOWN_CURRENCY', () => {
+    for (const c of ['XYZ', 'constructor', 'qar', ''] as unknown as CurrencyCode[]) {
+      try {
+        validateEntry(10000n, [s('A', 10000n, 10000n)], c);
+        expect.unreachable();
+      } catch (e) {
+        expect(e).toBeInstanceOf(MoneyError);
+        expect((e as MoneyError).code).toBe('UNKNOWN_CURRENCY');
+      }
+    }
   });
   it('EMPTY_ENTRY', () => {
     expect(code(() => validateEntry(10000n, [], 'QAR'))).toBe('EMPTY_ENTRY');
